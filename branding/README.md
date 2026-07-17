@@ -7,7 +7,8 @@ Primary mark: three soft teal “vertebra / disc” forms — calm clinical heal
 | File | Use |
 |------|-----|
 | `logo-mark.png` / `logo-mark-512.png` | Full-resolution mark on light tile |
-| `app-icon.png` | Teal rounded app icon (PWA / homescreen) |
+| `app-icon.png` | Teal rounded app icon (PWA / homescreen) — transparent outside the squircle |
+| `frontend/assets/brand/favicon.svg` (+ `favicon-32.png`, `/favicon.ico`) | Tab favicon: mark on **transparent** background (no white tile) |
 | `logo-lockup.png` / `logo-lockup-readme.png` | Horizontal mark + **L5S1 Health Registry** (transparent, tightly cropped — not a white tile) |
 | `logo-mark.svg` / `logo-lockup.svg` | Vector versions (crisp at any size; no baked background) |
 | `logo-monogram-alt.jpg` | Alternate LS monogram exploration (not primary) |

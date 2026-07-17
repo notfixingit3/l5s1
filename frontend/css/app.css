@@ -160,20 +160,23 @@ body {
 .brand-mark-img {
   width: 36px;
   height: 36px;
-  border-radius: 11px;
-  object-fit: cover;
-  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.28);
+  /* Icon already has rounded alpha; avoid clipping + white-looking edges */
+  border-radius: 0;
+  object-fit: contain;
+  background: transparent;
+  box-shadow: none;
   flex-shrink: 0;
 }
 
 .auth-logo {
   width: 72px;
   height: 72px;
-  border-radius: 18px;
-  object-fit: cover;
+  border-radius: 0;
+  object-fit: contain;
+  background: transparent;
   margin: 0 auto 0.9rem;
   display: block;
-  box-shadow: 0 8px 24px rgba(13, 148, 136, 0.28);
+  box-shadow: none;
 }
 
 .brand-text {
