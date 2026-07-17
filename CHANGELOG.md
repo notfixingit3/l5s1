@@ -24,9 +24,9 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/). Versions fol
 
 ### Images
 ```bash
-docker pull ghcr.io/notfixingit3/l5s1:v0.0.1-beta.14
+docker pull ghcr.io/notfixingit3/l5s1-4866:v0.0.1-beta.14
 # or
-docker pull ghcr.io/notfixingit3/l5s1:latest   # tracks newest tag
+docker pull ghcr.io/notfixingit3/l5s1-4866:latest   # tracks newest tag
 ```
 
 ## Unreleased

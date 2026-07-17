@@ -48,7 +48,7 @@ LABEL org.opencontainers.image.title="L5S1 Health Registry" \
       org.opencontainers.image.description="Passwordless multi-condition health tracking PWA" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.revision="${COMMIT}" \
-      org.opencontainers.image.source="https://github.com/notfixingit3/l5s1"
+      org.opencontainers.image.source="https://github.com/notfixingit3/l5s1-4866"
 
 ENV DATA_DIR=/data \
     DATABASE_DSN="file:/data/l5s1.db?cache=shared&mode=rwc" \

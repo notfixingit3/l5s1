@@ -9,8 +9,8 @@
   <img src="branding/logo-lockup-readme.png" alt="L5S1 Health Registry" width="420" />
 </p>
 
-[![CI](https://github.com/notfixingit3/l5s1/actions/workflows/ci.yml/badge.svg?branch=dev)](https://github.com/notfixingit3/l5s1/actions/workflows/ci.yml)
-[![Container](https://github.com/notfixingit3/l5s1/actions/workflows/container.yml/badge.svg)](https://github.com/notfixingit3/l5s1/actions/workflows/container.yml)
+[![CI](https://github.com/notfixingit3/l5s1-4866/actions/workflows/ci.yml/badge.svg?branch=dev)](https://github.com/notfixingit3/l5s1-4866/actions/workflows/ci.yml)
+[![Container](https://github.com/notfixingit3/l5s1-4866/actions/workflows/container.yml/badge.svg)](https://github.com/notfixingit3/l5s1-4866/actions/workflows/container.yml)
 
 Progressive Web App for multi-condition health tracking with passwordless multi-device WebAuthn, partner observation, clinician summary, and admin controls.
 
@@ -20,16 +20,16 @@ Images are built by GitHub Actions on every push to `dev` and on every `v*` tag.
 
 | Tag | Meaning |
 |-----|---------|
-| `ghcr.io/notfixingit3/l5s1:v0.0.1-beta.14` | Immutable release (this beta) |
-| `ghcr.io/notfixingit3/l5s1:latest` | Latest **tagged** release |
-| `ghcr.io/notfixingit3/l5s1:dev` | Latest build from `dev` branch |
-| `ghcr.io/notfixingit3/l5s1:sha-<short>` | Exact commit |
+| `ghcr.io/notfixingit3/l5s1-4866:v0.0.1-beta.14` | Immutable release (this beta) |
+| `ghcr.io/notfixingit3/l5s1-4866:latest` | Latest **tagged** release |
+| `ghcr.io/notfixingit3/l5s1-4866:dev` | Latest build from `dev` branch |
+| `ghcr.io/notfixingit3/l5s1-4866:sha-<short>` | Exact commit |
 
 ### Run a tagged beta
 
 ```bash
 # Pull
-docker pull ghcr.io/notfixingit3/l5s1:v0.0.1-beta.14
+docker pull ghcr.io/notfixingit3/l5s1-4866:v0.0.1-beta.14
 
 # Run (local WebAuthn — open http://localhost:8080 only)
 docker run --rm -p 8080:8080 \
@@ -37,7 +37,7 @@ docker run --rm -p 8080:8080 \
   -e WEBAUTHN_ORIGINS=http://localhost:8080 \
   -e SEED_ADMIN_USERNAME=admin \
   -v l5s1-data:/data \
-  ghcr.io/notfixingit3/l5s1:v0.0.1-beta.14
+  ghcr.io/notfixingit3/l5s1-4866:v0.0.1-beta.14
 ```
 
 Private packages may require:
