@@ -357,21 +357,25 @@ async function loadTagsAdmin() {
     box.innerHTML = tags
       .map((t, i) => {
         const onOff = t.is_active ? `<span class="badge-ok">On</span>` : `<span class="badge-locked">Off</span>`;
-        const sys = t.is_system ? `<span class="badge role-patient">Default</span>` : `<span class="badge">Custom</span>`;
+        const sys = t.is_system
+          ? `<span class="badge-default" title="Built-in catalog tag — cannot be deleted">Default</span>`
+          : `<span class="badge-custom" title="Admin-created tag">Custom</span>`;
         const usage =
           t.usage_count > 0
             ? ` · ${t.usage_count} log${t.usage_count === 1 ? "" : "s"}`
             : "";
-        const delBtn = t.can_delete
-          ? `<button type="button" class="ghost" data-action="delete">Delete</button>`
-          : `<button type="button" class="ghost" data-action="delete" disabled title="Default tags cannot be deleted">Delete</button>`;
+        // Default (system) tags: no Delete control at all — only Enable/Disable
+        const delBtn =
+          t.can_delete && !t.is_system
+            ? `<button type="button" class="ghost" data-action="delete">Delete</button>`
+            : "";
         return `
         <div class="admin-card" data-tag-id="${esc(t.id)}" data-tag-key="${esc(t.key)}" data-tag-label="${esc(t.label)}" data-is-system="${t.is_system ? "1" : "0"}" data-usage="${t.usage_count || 0}">
           <div class="tag-row-head">
             <span class="tag-pos">${i + 1}</span>
             <h4>${esc(t.label)} ${onOff} ${sys}</h4>
           </div>
-          <div class="meta">key: ${esc(t.key)}${usage}</div>
+          <div class="meta">key: ${esc(t.key)}${usage}${t.is_system ? " · system catalog (not deletable)" : ""}</div>
           <div class="actions">
             <button type="button" class="secondary" data-action="up" title="Move up">↑</button>
             <button type="button" class="secondary" data-action="down" title="Move down">↓</button>

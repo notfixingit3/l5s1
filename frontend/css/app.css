@@ -1478,6 +1478,28 @@ hr {
   border-radius: 4px;
 }
 
+.badge-default {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--primary-ink);
+  background: var(--primary-soft);
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+  border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent);
+}
+
+.badge-custom {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--surface-soft);
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+
 .badge-ok {
   display: inline-block;
   font-size: 0.68rem;
