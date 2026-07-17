@@ -28,20 +28,22 @@ jobs:
       - name: Version metadata
         id: meta_version
         run: |
+          # Product version stays clean (from tag or VERSION file).
+          # Commit is stamped separately — display is v{VERSION}+{COMMIT},
+          # so do NOT also bake -g{sha} into VERSION (that doubled the hash).
           if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             RAW="${GITHUB_REF_NAME}"
             VERSION="${RAW#v}"
           else
             VERSION="$(tr -d '[:space:]' < VERSION 2>/dev/null || echo "0.0.0-dev")"
-            if [[ "${GITHUB_REF_NAME}" != "dev" ]]; then
+            if [[ "${GITHUB_REF_NAME}" != "dev" && "${GITHUB_REF_NAME}" != "main" ]]; then
               VERSION="${VERSION}-${GITHUB_REF_NAME}"
             fi
-            VERSION="${VERSION}-g${GITHUB_SHA::7}"
           fi
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "commit=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
           echo "build_time=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
-          echo "Resolved version=${VERSION}"
+          echo "Resolved version=${VERSION} commit=${GITHUB_SHA::7}"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

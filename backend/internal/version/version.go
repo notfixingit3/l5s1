@@ -12,6 +12,9 @@ var Commit = "dev"
 var BuildTime = "unknown"
 
 // String returns a human-readable version line.
+// Examples: "v0.0.1-beta.14" (local) or "v0.0.1-beta.14+167ff35" (CI).
+// Version must NOT already include the commit — that produced doubled
+// strings like "v0.0.1-beta.14-g167ff35+167ff35".
 func String() string {
 	if Commit == "" || Commit == "dev" {
 		return "v" + Version
