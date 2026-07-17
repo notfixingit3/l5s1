@@ -1,0 +1,110 @@
+name: Container
+
+on:
+  push:
+    branches: [dev]
+    tags: ["v*"]
+  pull_request:
+    branches: [dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+  attestations: write
+  id-token: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Version metadata
+        id: meta_version
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            RAW="${GITHUB_REF_NAME}"
+            VERSION="${RAW#v}"
+          else
+            VERSION="$(tr -d '[:space:]' < VERSION 2>/dev/null || echo "0.0.0-dev")"
+            if [[ "${GITHUB_REF_NAME}" != "dev" ]]; then
+              VERSION="${VERSION}-${GITHUB_REF_NAME}"
+            fi
+            VERSION="${VERSION}-g${GITHUB_SHA::7}"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "commit=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          echo "build_time=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+          echo "Resolved version=${VERSION}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{raw}}
+            type=semver,pattern={{version}}
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ steps.meta_version.outputs.version }}
+            COMMIT=${{ steps.meta_version.outputs.commit }}
+            BUILD_TIME=${{ steps.meta_version.outputs.build_time }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+      - name: Summary
+        if: github.event_name != 'pull_request'
+        run: |
+          {
+            echo "## L5S1 container published"
+            echo ""
+            echo "**Version:** \`${{ steps.meta_version.outputs.version }}\`"
+            echo "**Commit:** \`${{ steps.meta_version.outputs.commit }}\`"
+            echo ""
+            echo "### Pull"
+            echo '```bash'
+            echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}"
+            if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+              echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+            fi
+            echo '```'
+            echo ""
+            echo "### Run (local WebAuthn)"
+            echo '```bash'
+            echo "docker run --rm -p 8080:8080 \\"
+            echo "  -e WEBAUTHN_RP_ID=localhost \\"
+            echo "  -e WEBAUTHN_ORIGINS=http://localhost:8080 \\"
+            echo "  -v l5s1-data:/data \\"
+            echo "  ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

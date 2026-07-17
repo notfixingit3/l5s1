@@ -1,0 +1,66 @@
+# L5S1 local stack — passkey-safe Docker development
+#
+# CRITICAL for WebAuthn / passkeys:
+#   • Always open http://localhost:8080
+#       NOT http://127.0.0.1:8080  (different effective domain → passkeys break)
+#       NOT http://l5s1:8080 or other hostnames
+#   • Keep WEBAUTHN_RP_ID=localhost across rebuilds forever for this dev machine
+#   • Credential public keys live in ./data/l5s1.db (bind-mounted host folder)
+#       → survive: compose restart, image rebuild, `docker compose down`
+#   • Browser login sessions are in-memory — re-auth after restart; passkeys remain
+
+x-app-environment: &app-environment
+  PORT: "8080"
+  DATA_DIR: /data
+  DATABASE_DSN: "file:/data/l5s1.db?cache=shared&mode=rwc"
+  FRONTEND_DIR: /app/frontend
+  WEBAUTHN_RP_ID: localhost
+  WEBAUTHN_ORIGINS: http://localhost:8080
+  WEBAUTHN_RP_DISPLAY_NAME: L5S1 Health Registry
+  SEED_ADMIN_USERNAME: admin
+  SECURE_COOKIE: "false"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VERSION: ${VERSION:-0.0.1-beta.14}
+        COMMIT: ${COMMIT:-local}
+        BUILD_TIME: ${BUILD_TIME:-unknown}
+    image: l5s1:local
+    container_name: l5s1
+    ports:
+      - "8080:8080"
+    environment:
+      <<: *app-environment
+      GIN_MODE: release
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
+
+  # UI-hot path: same DB + RP identity, host frontend mounted for CSS/JS edits
+  # Usage: docker compose --profile dev up --build app-dev
+  # (stop `app` first if port 8080 is taken)
+  app-dev:
+    profiles: ["dev"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VERSION: ${VERSION:-0.0.1-beta.14}
+        COMMIT: ${COMMIT:-local}
+        BUILD_TIME: ${BUILD_TIME:-unknown}
+    image: l5s1:local
+    container_name: l5s1-dev
+    ports:
+      - "8080:8080"
+    environment:
+      <<: *app-environment
+      GIN_MODE: debug
+      SEED_ADMIN_USERNAME: admin
+    volumes:
+      - ./data:/data
+      - ./frontend:/app/frontend:ro
+    restart: unless-stopped

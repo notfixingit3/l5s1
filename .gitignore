@@ -1,0 +1,30 @@
+# Passkey + app data (keep local; never commit)
+/data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Env overrides
+.env
+.env.local
+
+# Binaries / IDE
+/backend/l5s1
+/tmp/
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Frontend tooling (dev-only lint)
+frontend/node_modules/
+frontend/package-lock.json
+tools/node_modules/
+tools/package-lock.json
+tools/package.json
+
+# Local env
+.env
+.env.*
+!.env.example

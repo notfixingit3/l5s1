@@ -1,0 +1,23 @@
+# Git / IDE
+.git
+.gitignore
+**/.DS_Store
+.idea
+.vscode
+
+# Local data must never be baked into the image (passkeys live on the host mount)
+data/
+*.db
+*.db-*
+
+# Build artifacts
+backend/l5s1
+**/coverage*
+**/*_test.go.bak
+
+# Docs not needed in image (kept on host)
+docs/
+README.md
+Makefile
+.env
+.env.*

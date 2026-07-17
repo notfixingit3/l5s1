@@ -1,0 +1,9 @@
+{
+  "name": "l5s1-frontend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "eslint js/",
+    "lint:security": "eslint js/ --max-warnings 0"
+  }
+}

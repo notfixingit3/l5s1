@@ -1,0 +1,25 @@
+# Run a published GHCR image instead of building locally.
+# Usage:
+#   docker compose -f docker-compose.ghcr.yml up -d
+# Optional: IMAGE_TAG=v0.0.1-beta.14 docker compose -f docker-compose.ghcr.yml up -d
+
+services:
+  app:
+    image: ghcr.io/nottellingit3/l5s1:${IMAGE_TAG:-v0.0.1-beta.14}
+    container_name: l5s1
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      DATA_DIR: /data
+      DATABASE_DSN: "file:/data/l5s1.db?cache=shared&mode=rwc"
+      FRONTEND_DIR: /app/frontend
+      WEBAUTHN_RP_ID: localhost
+      WEBAUTHN_ORIGINS: http://localhost:8080
+      WEBAUTHN_RP_DISPLAY_NAME: L5S1 Health Registry
+      SEED_ADMIN_USERNAME: admin
+      SECURE_COOKIE: "false"
+      GIN_MODE: release
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
