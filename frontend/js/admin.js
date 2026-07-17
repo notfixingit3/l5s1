@@ -39,7 +39,7 @@ async function loadUsers() {
     }
     box.innerHTML = users
       .map((u) => {
-        const lockLabel = u.is_active ? "Lock" : "Unlock";
+        const lockLabel = u.is_active ? "Lock account" : "Unlock account";
         const status = u.is_active
           ? `<span class="badge-ok">Active</span>`
           : `<span class="badge-locked">Locked</span>`;
@@ -53,16 +53,37 @@ async function loadUsers() {
           u.role === "admin"
             ? `<button type="button" class="ghost" data-action="role-patient">Remove admin</button>`
             : `<button type="button" class="secondary" data-action="role-admin">Make admin</button>`;
+        const devices = u.devices || [];
+        const deviceList =
+          devices.length === 0
+            ? `<p class="muted empty-inline">No passkeys registered.</p>`
+            : `<ul class="admin-device-list">${devices
+                .map((d) => {
+                  const when = d.created_at ? new Date(d.created_at).toLocaleString() : "—";
+                  return `<li class="admin-device-row" data-cred-id="${esc(d.id)}">
+                    <div class="admin-device-main">
+                      <strong>${esc(d.device_type || "Device")}</strong>
+                      <span class="meta">added ${esc(when)} · used ${d.sign_count ?? 0}×</span>
+                    </div>
+                    <button type="button" class="ghost" data-action="revoke-passkey" data-cred-id="${esc(d.id)}" data-device-name="${esc(d.device_type || "Device")}">Revoke</button>
+                  </li>`;
+                })
+                .join("")}</ul>`;
         return `
-        <div class="admin-card" data-user-id="${esc(u.id)}" data-role="${esc(u.role)}">
+        <div class="admin-card" data-user-id="${esc(u.id)}" data-role="${esc(u.role)}" data-email="${esc(u.email || "")}" data-username="${esc(u.username || "")}">
           <h4>${esc(u.display_name || u.username)} ${status} ${roleBadge}</h4>
-          <div class="meta">@${esc(u.username)} · ${esc(u.email || "no email")} · ${u.device_count} device(s)</div>
+          <div class="meta">@${esc(u.username)} · ${esc(u.email || "no email")} · ${u.device_count} passkey(s)</div>
           <div class="actions">
+            <button type="button" class="secondary" data-action="edit-email">Edit email</button>
             <button type="button" class="secondary" data-action="toggle-lock">${lockLabel}</button>
             ${makeAdminBtn}
             <button type="button" class="ghost" data-action="role-patient">Set patient</button>
             <button type="button" class="ghost" data-action="role-partner">Set partner</button>
-            <button type="button" class="ghost" data-action="force-rereg">Force re-register</button>
+            <button type="button" class="ghost" data-action="force-rereg">Wipe all passkeys</button>
+          </div>
+          <div class="admin-devices">
+            <div class="section-title"><h3>Passkeys</h3></div>
+            ${deviceList}
           </div>
         </div>`;
       })
@@ -88,9 +109,52 @@ async function onUsersClick(e) {
   const st = document.getElementById("admin-users-status");
   st?.classList.remove("error");
   const action = btn.dataset.action;
+
+  // Per-passkey revoke (does not use PatchUser)
+  if (action === "revoke-passkey") {
+    const credId = btn.dataset.credId;
+    const deviceName = btn.dataset.deviceName || "this passkey";
+    if (!credId) return;
+    const ok = await appConfirm({
+      title: "Revoke passkey?",
+      message: `Remove “${deviceName}” from @${card.dataset.username || "user"}? That device will no longer be able to sign in until a new passkey is added (device code or profile).`,
+      confirmLabel: "Revoke passkey",
+      variant: "danger",
+    });
+    if (!ok) return;
+    btn.disabled = true;
+    try {
+      await api(
+        `/api/admin/users/${encodeURIComponent(id)}/credentials/${encodeURIComponent(credId)}`,
+        { method: "DELETE" }
+      );
+      if (st) st.textContent = `Revoked passkey “${deviceName}”`;
+      await loadUsers();
+    } catch (err) {
+      if (st) {
+        st.textContent = err.message || "Revoke failed";
+        st.classList.add("error");
+      }
+    } finally {
+      btn.disabled = false;
+    }
+    return;
+  }
+
   let body = null;
 
-  if (action === "toggle-lock") {
+  if (action === "edit-email") {
+    const next = await appPrompt({
+      title: "Edit email",
+      message: `Correct the email for @${card.dataset.username || "user"}. Leave blank to clear.`,
+      label: "Email",
+      defaultValue: card.dataset.email || "",
+      placeholder: "name@example.com",
+      confirmLabel: "Save email",
+    });
+    if (next === null) return;
+    body = { email: next.trim() };
+  } else if (action === "toggle-lock") {
     const locked = card.querySelector(".badge-locked");
     const unlocking = !!locked;
     const ok = await appConfirm({
@@ -105,9 +169,9 @@ async function onUsersClick(e) {
     body = { is_active: unlocking };
   } else if (action === "force-rereg") {
     const ok = await appConfirm({
-      title: "Force re-registration?",
-      message: `This wipes all passkeys for ${who}. They must create a new passkey before signing in again.`,
-      confirmLabel: "Wipe passkeys",
+      title: "Wipe all passkeys?",
+      message: `This removes every passkey for ${who}. They must create a new passkey before signing in again.`,
+      confirmLabel: "Wipe all passkeys",
       variant: "danger",
     });
     if (!ok) return;
@@ -147,9 +211,11 @@ async function onUsersClick(e) {
   try {
     await api(`/api/admin/users/${encodeURIComponent(id)}`, { method: "PATCH", body });
     if (st) {
-      if (action === "role-admin") st.textContent = "User is now an admin";
+      if (action === "edit-email") st.textContent = body.email ? `Email set to ${body.email}` : "Email cleared";
+      else if (action === "role-admin") st.textContent = "User is now an admin";
       else if (action === "role-patient" && card.dataset.role === "admin") st.textContent = "Admin role removed";
       else if (action === "toggle-lock") st.textContent = body.is_active ? "Account unlocked" : "Account locked";
+      else if (action === "force-rereg") st.textContent = "All passkeys wiped";
       else st.textContent = "User updated";
     }
     await loadUsers();

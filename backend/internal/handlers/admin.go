@@ -58,20 +58,21 @@ func (h *AdminHandler) ListUsers(c *gin.Context) {
 		return
 	}
 	type device struct {
-		ID         string `json:"id"`
-		DeviceType string `json:"device_type"`
-		SignCount  uint32 `json:"sign_count"`
+		ID         string    `json:"id"`
+		DeviceType string    `json:"device_type"`
+		SignCount  uint32    `json:"sign_count"`
+		CreatedAt  time.Time `json:"created_at"`
 	}
 	type row struct {
-		ID          string   `json:"id"`
-		Username    string   `json:"username"`
-		Email       string   `json:"email"`
-		DisplayName string   `json:"display_name"`
-		Role        string   `json:"role"`
-		IsActive    bool     `json:"is_active"`
-		ForceReReg  bool     `json:"force_re_register"`
-		DeviceCount int      `json:"device_count"`
-		Devices     []device `json:"devices"`
+		ID          string    `json:"id"`
+		Username    string    `json:"username"`
+		Email       string    `json:"email"`
+		DisplayName string    `json:"display_name"`
+		Role        string    `json:"role"`
+		IsActive    bool      `json:"is_active"`
+		ForceReReg  bool      `json:"force_re_register"`
+		DeviceCount int       `json:"device_count"`
+		Devices     []device  `json:"devices"`
 		CreatedAt   time.Time `json:"created_at"`
 	}
 	out := make([]row, 0, len(users))
@@ -82,6 +83,7 @@ func (h *AdminHandler) ListUsers(c *gin.Context) {
 				ID:         auth.EncodeCredentialIDHex(cr.ID),
 				DeviceType: cr.DeviceType,
 				SignCount:  cr.SignCount,
+				CreatedAt:  cr.CreatedAt,
 			})
 		}
 		out = append(out, row{
@@ -100,7 +102,7 @@ func (h *AdminHandler) ListUsers(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"users": out})
 }
 
-// PatchUser toggles activity, force re-registration, or role.
+// PatchUser updates activity, role, display name, email, or force re-registration.
 // PATCH /api/admin/users/:id
 func (h *AdminHandler) PatchUser(c *gin.Context) {
 	id := c.Param("id")
@@ -115,6 +117,7 @@ func (h *AdminHandler) PatchUser(c *gin.Context) {
 		ForceReRegister *bool   `json:"force_re_register"`
 		Role            *string `json:"role"`
 		DisplayName     *string `json:"display_name"`
+		Email           *string `json:"email"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid body"})
@@ -160,6 +163,28 @@ func (h *AdminHandler) PatchUser(c *gin.Context) {
 		}
 		updates["display_name"] = dn
 	}
+	if req.Email != nil {
+		em := strings.ToLower(strings.TrimSpace(*req.Email))
+		if em == "" {
+			// Allow clearing email
+			updates["email"] = ""
+		} else {
+			if !adminEmailOK(em) {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid email address"})
+				return
+			}
+			var n int64
+			if err := h.DB.Model(&models.User{}).Where("email = ? AND id != ? AND email != ''", em, user.ID).Count(&n).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+				return
+			}
+			if n > 0 {
+				c.JSON(http.StatusConflict, gin.H{"error": "email already in use by another account"})
+				return
+			}
+			updates["email"] = em
+		}
+	}
 	if len(updates) == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "no updates"})
 		return
@@ -170,6 +195,17 @@ func (h *AdminHandler) PatchUser(c *gin.Context) {
 	}
 	h.DB.First(&user, "id = ?", id)
 	c.JSON(http.StatusOK, user)
+}
+
+func adminEmailOK(s string) bool {
+	if len(s) > 254 || !strings.Contains(s, "@") {
+		return false
+	}
+	at := strings.LastIndex(s, "@")
+	if at < 1 || at >= len(s)-3 {
+		return false
+	}
+	return strings.Contains(s[at+1:], ".")
 }
 
 // RevokeCredential removes one device passkey.
