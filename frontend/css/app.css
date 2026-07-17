@@ -1026,6 +1026,17 @@ body.dialog-open {
   margin-bottom: 0.35rem;
 }
 
+.app-dialog-select {
+  width: 100%;
+  margin-top: 0.35rem;
+  padding: 0.55rem 0.65rem;
+  font: inherit;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+}
+
 .app-dialog-input {
   width: 100%;
   margin: 0;

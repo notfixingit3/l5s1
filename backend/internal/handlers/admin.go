@@ -339,17 +339,31 @@ func slugifyTagKey(s string) string {
 	return s
 }
 
-// ListTagsAdmin GET /api/admin/tags (includes inactive)
+// ListTagsAdmin GET /api/admin/tags (includes inactive + usage)
 func (h *AdminHandler) ListTagsAdmin(c *gin.Context) {
 	var tags []models.Tag
 	if err := h.DB.Order("sort_order asc, label asc").Find(&tags).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "list tags failed"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"tags": tags})
+	type row struct {
+		models.Tag
+		UsageCount int  `json:"usage_count"`
+		CanDelete  bool `json:"can_delete"`
+	}
+	out := make([]row, 0, len(tags))
+	for _, t := range tags {
+		n := countTagUsage(h.DB, t.Key)
+		out = append(out, row{
+			Tag:        t,
+			UsageCount: n,
+			CanDelete:  !t.IsSystem,
+		})
+	}
+	c.JSON(http.StatusOK, gin.H{"tags": out})
 }
 
-// CreateTag POST /api/admin/tags
+// CreateTag POST /api/admin/tags — custom (non-system) tags only
 func (h *AdminHandler) CreateTag(c *gin.Context) {
 	var req struct {
 		Key       string `json:"key"`
@@ -369,6 +383,11 @@ func (h *AdminHandler) CreateTag(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "label required; key must be lowercase slug (e.g. uc-flare)"})
 		return
 	}
+	// Reserved system keys cannot be re-created as custom
+	if _, ok := database.DefaultTagKeys()[key]; ok {
+		c.JSON(http.StatusConflict, gin.H{"error": "that key is reserved for a default system tag"})
+		return
+	}
 	sortOrder := req.SortOrder
 	if sortOrder == 0 {
 		var maxOrd int
@@ -380,6 +399,7 @@ func (h *AdminHandler) CreateTag(c *gin.Context) {
 		Label:     label,
 		SortOrder: sortOrder,
 		IsActive:  true,
+		IsSystem:  false,
 		CreatedAt: time.Now().UTC(),
 	}
 	if err := h.DB.Create(&tag).Error; err != nil {
@@ -389,7 +409,7 @@ func (h *AdminHandler) CreateTag(c *gin.Context) {
 	c.JSON(http.StatusCreated, tag)
 }
 
-// PatchTag PATCH /api/admin/tags/:id
+// PatchTag PATCH /api/admin/tags/:id — enable/disable, rename; system keys immutable
 func (h *AdminHandler) PatchTag(c *gin.Context) {
 	id := c.Param("id")
 	var tag models.Tag
@@ -417,9 +437,17 @@ func (h *AdminHandler) PatchTag(c *gin.Context) {
 		updates["label"] = lb
 	}
 	if req.Key != nil {
+		if tag.IsSystem {
+			c.JSON(http.StatusForbidden, gin.H{"error": "cannot change key of a default system tag"})
+			return
+		}
 		k := slugifyTagKey(*req.Key)
 		if !tagKeyRe.MatchString(k) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid key"})
+			return
+		}
+		if _, ok := database.DefaultTagKeys()[k]; ok {
+			c.JSON(http.StatusConflict, gin.H{"error": "that key is reserved for a default system tag"})
 			return
 		}
 		updates["key"] = k
@@ -427,6 +455,7 @@ func (h *AdminHandler) PatchTag(c *gin.Context) {
 	if req.SortOrder != nil {
 		updates["sort_order"] = *req.SortOrder
 	}
+	// Enable / disable allowed for both system and custom tags
 	if req.IsActive != nil {
 		updates["is_active"] = *req.IsActive
 	}
@@ -434,17 +463,73 @@ func (h *AdminHandler) PatchTag(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "no updates"})
 		return
 	}
+	// If renaming a custom key that is in use, rewrite logs to the new key
+	oldKey := tag.Key
 	if err := h.DB.Model(&tag).Updates(updates).Error; err != nil {
 		c.JSON(http.StatusConflict, gin.H{"error": "update failed (key may be taken)"})
 		return
+	}
+	if nk, ok := updates["key"].(string); ok && nk != oldKey {
+		if err := rewriteTagKeyOnLogs(h.DB, oldKey, nk); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "updated tag but failed to rewrite log references"})
+			return
+		}
 	}
 	h.DB.First(&tag, "id = ?", id)
 	c.JSON(http.StatusOK, tag)
 }
 
 // DeleteTag DELETE /api/admin/tags/:id
+// Body (optional): { "replace_with": "other-key" } — required when the tag appears on logs.
+// System (default) tags cannot be deleted; disable them instead.
 func (h *AdminHandler) DeleteTag(c *gin.Context) {
 	id := c.Param("id")
+	var tag models.Tag
+	if err := h.DB.First(&tag, "id = ?", id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "tag not found"})
+		return
+	}
+	if tag.IsSystem {
+		c.JSON(http.StatusForbidden, gin.H{
+			"error":     "default system tags cannot be deleted — disable them instead",
+			"is_system": true,
+		})
+		return
+	}
+
+	var req struct {
+		ReplaceWith string `json:"replace_with"` // key of replacement tag
+	}
+	_ = c.ShouldBindJSON(&req)
+	replaceKey := slugifyTagKey(req.ReplaceWith)
+
+	usage := countTagUsage(h.DB, tag.Key)
+	if usage > 0 {
+		if replaceKey == "" {
+			c.JSON(http.StatusConflict, gin.H{
+				"error":             "tag is in use — choose a replacement tag for existing logs",
+				"needs_replacement": true,
+				"usage_count":       usage,
+				"tag_key":           tag.Key,
+				"replacements":      listTagReplacements(h.DB, tag.ID),
+			})
+			return
+		}
+		if replaceKey == tag.Key {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "replacement must be a different tag"})
+			return
+		}
+		var repl models.Tag
+		if err := h.DB.Where("key = ?", replaceKey).First(&repl).Error; err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "replacement tag not found"})
+			return
+		}
+		if err := rewriteTagKeyOnLogs(h.DB, tag.Key, replaceKey); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to rewrite log tags"})
+			return
+		}
+	}
+
 	res := h.DB.Where("id = ?", id).Delete(&models.Tag{})
 	if res.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "delete failed"})
@@ -454,7 +539,97 @@ func (h *AdminHandler) DeleteTag(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "tag not found"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"status": "deleted"})
+	c.JSON(http.StatusOK, gin.H{
+		"status":          "deleted",
+		"replaced_with":   replaceKey,
+		"logs_rewritten":  usage,
+	})
+}
+
+// countTagUsage counts health_logs rows that include key as a whole CSV token.
+func countTagUsage(db *gorm.DB, key string) int {
+	if key == "" {
+		return 0
+	}
+	var logs []models.HealthLog
+	// Narrow candidates with LIKE then exact-token match in Go
+	like := "%" + key + "%"
+	if err := db.Select("id", "tags").Where("tags LIKE ?", like).Find(&logs).Error; err != nil {
+		return 0
+	}
+	n := 0
+	for _, l := range logs {
+		if csvHasTag(l.Tags, key) {
+			n++
+		}
+	}
+	return n
+}
+
+func csvHasTag(csv, key string) bool {
+	for _, p := range strings.Split(csv, ",") {
+		if strings.TrimSpace(p) == key {
+			return true
+		}
+	}
+	return false
+}
+
+func rewriteTagKeyOnLogs(db *gorm.DB, oldKey, newKey string) error {
+	var logs []models.HealthLog
+	like := "%" + oldKey + "%"
+	if err := db.Where("tags LIKE ?", like).Find(&logs).Error; err != nil {
+		return err
+	}
+	for _, l := range logs {
+		next, changed := replaceCSVTag(l.Tags, oldKey, newKey)
+		if !changed {
+			continue
+		}
+		if err := db.Model(&models.HealthLog{}).Where("id = ?", l.ID).Update("tags", next).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func replaceCSVTag(csv, oldKey, newKey string) (string, bool) {
+	parts := strings.Split(csv, ",")
+	out := make([]string, 0, len(parts))
+	seen := map[string]struct{}{}
+	changed := false
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		if p == oldKey {
+			p = newKey
+			changed = true
+		}
+		if _, ok := seen[p]; ok {
+			continue
+		}
+		seen[p] = struct{}{}
+		out = append(out, p)
+	}
+	return strings.Join(out, ","), changed
+}
+
+func listTagReplacements(db *gorm.DB, excludeID string) []gin.H {
+	var tags []models.Tag
+	_ = db.Where("id != ?", excludeID).Order("sort_order asc, label asc").Find(&tags)
+	out := make([]gin.H, 0, len(tags))
+	for _, t := range tags {
+		out = append(out, gin.H{
+			"id":        t.ID,
+			"key":       t.Key,
+			"label":     t.Label,
+			"is_active": t.IsActive,
+			"is_system": t.IsSystem,
+		})
+	}
+	return out
 }
 
 // MoveTag POST /api/admin/tags/:id/move  { "direction": "up"|"down" }

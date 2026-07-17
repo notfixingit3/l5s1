@@ -84,40 +84,53 @@ func Migrate(db *gorm.DB) error {
 // DefaultTags returns the curated tag catalog in fast-entry order:
 // side → body region → sensation → movement → conditions/vitals.
 func DefaultTags() []models.Tag {
+	// All seeded catalog entries are system tags (never deletable).
+	mk := func(key, label string, order int) models.Tag {
+		return models.Tag{Key: key, Label: label, SortOrder: order, IsActive: true, IsSystem: true}
+	}
 	return []models.Tag{
 		// Laterality first — tap Left/Right then region
-		{Key: "left", Label: "Left", SortOrder: 10},
-		{Key: "right", Label: "Right", SortOrder: 20},
-		{Key: "both-sides", Label: "Both sides", SortOrder: 30},
+		mk("left", "Left", 10),
+		mk("right", "Right", 20),
+		mk("both-sides", "Both sides", 30),
 		// Body regions (high-use for stenosis / back)
-		{Key: "lower-back", Label: "Lower back", SortOrder: 40},
-		{Key: "hips", Label: "Hips", SortOrder: 50},
-		{Key: "glute", Label: "Glute", SortOrder: 60},
-		{Key: "leg", Label: "Leg", SortOrder: 70},
-		{Key: "thigh", Label: "Thigh", SortOrder: 80},
-		{Key: "calf", Label: "Calf", SortOrder: 90},
-		{Key: "foot", Label: "Foot", SortOrder: 100},
+		mk("lower-back", "Lower back", 40),
+		mk("hips", "Hips", 50),
+		mk("glute", "Glute", 60),
+		mk("leg", "Leg", 70),
+		mk("thigh", "Thigh", 80),
+		mk("calf", "Calf", 90),
+		mk("foot", "Foot", 100),
 		// Sensations
-		{Key: "numbing", Label: "Numbing", SortOrder: 110},
-		{Key: "pins-needles", Label: "Pins & needles", SortOrder: 120},
-		{Key: "tingling", Label: "Tingling", SortOrder: 130},
-		{Key: "burning", Label: "Burning", SortOrder: 140},
-		{Key: "sharp-pain", Label: "Sharp pain", SortOrder: 150},
-		{Key: "dull-ache", Label: "Dull ache", SortOrder: 160},
-		{Key: "radiating", Label: "Radiating", SortOrder: 170},
-		{Key: "cramping", Label: "Cramping", SortOrder: 180},
+		mk("numbing", "Numbing", 110),
+		mk("pins-needles", "Pins & needles", 120),
+		mk("tingling", "Tingling", 130),
+		mk("burning", "Burning", 140),
+		mk("sharp-pain", "Sharp pain", 150),
+		mk("dull-ache", "Dull ache", 160),
+		mk("radiating", "Radiating", 170),
+		mk("cramping", "Cramping", 180),
 		// Function / movement
-		{Key: "weakness", Label: "Weakness", SortOrder: 190},
-		{Key: "stiffness", Label: "Stiffness", SortOrder: 200},
-		{Key: "limping", Label: "Limping", SortOrder: 210},
+		mk("weakness", "Weakness", 190),
+		mk("stiffness", "Stiffness", 200),
+		mk("limping", "Limping", 210),
 		// Conditions / vitals (less frequent per-entry)
-		{Key: "stenosis", Label: "Stenosis", SortOrder: 220},
-		{Key: "uc-flare", Label: "UC flare", SortOrder: 230},
-		{Key: "bp-high", Label: "BP high", SortOrder: 240},
-		{Key: "bp-ok", Label: "BP ok", SortOrder: 250},
-		{Key: "glucose-high", Label: "Glucose high", SortOrder: 260},
-		{Key: "glucose-low", Label: "Glucose low", SortOrder: 270},
+		mk("stenosis", "Stenosis", 220),
+		mk("uc-flare", "UC flare", 230),
+		mk("bp-high", "BP high", 240),
+		mk("bp-ok", "BP ok", 250),
+		mk("glucose-high", "Glucose high", 260),
+		mk("glucose-low", "Glucose low", 270),
 	}
+}
+
+// DefaultTagKeys is the set of system catalog keys.
+func DefaultTagKeys() map[string]struct{} {
+	m := make(map[string]struct{}, 32)
+	for _, t := range DefaultTags() {
+		m[t.Key] = struct{}{}
+	}
+	return m
 }
 
 // ApplyRecommendedTagOrder sets sort_order for known default keys.
@@ -139,11 +152,19 @@ func seedDefaultTags(db *gorm.DB) error {
 			return err
 		}
 		if n == 0 {
-			t.IsActive = true
 			if err := db.Create(&t).Error; err != nil {
 				return err
 			}
 		}
+	}
+
+	// Mark known defaults as system (never deletable) for DBs created before is_system.
+	sysKeys := make([]string, 0, len(defaults))
+	for _, t := range defaults {
+		sysKeys = append(sysKeys, t.Key)
+	}
+	if err := db.Model(&models.Tag{}).Where("key IN ?", sysKeys).Update("is_system", true).Error; err != nil {
+		return err
 	}
 
 	// One-shot reorder when recommended layout changes (does not run again until version bumps).

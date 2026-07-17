@@ -1,5 +1,5 @@
 import { api } from "./api.js";
-import { appConfirm, appPrompt } from "./dialog.js";
+import { appConfirm, appPrompt, appSelect } from "./dialog.js";
 
 export function initAdmin() {
   document.querySelectorAll(".admin-tab").forEach((t) => {
@@ -290,20 +290,28 @@ async function loadTagsAdmin() {
     }
     box.innerHTML = tags
       .map((t, i) => {
-        const badge = t.is_active ? `<span class="badge-ok">On</span>` : `<span class="badge-locked">Off</span>`;
+        const onOff = t.is_active ? `<span class="badge-ok">On</span>` : `<span class="badge-locked">Off</span>`;
+        const sys = t.is_system ? `<span class="badge role-patient">Default</span>` : `<span class="badge">Custom</span>`;
+        const usage =
+          t.usage_count > 0
+            ? ` · ${t.usage_count} log${t.usage_count === 1 ? "" : "s"}`
+            : "";
+        const delBtn = t.can_delete
+          ? `<button type="button" class="ghost" data-action="delete">Delete</button>`
+          : `<button type="button" class="ghost" data-action="delete" disabled title="Default tags cannot be deleted">Delete</button>`;
         return `
-        <div class="admin-card" data-tag-id="${esc(t.id)}" data-tag-key="${esc(t.key)}" data-tag-label="${esc(t.label)}">
+        <div class="admin-card" data-tag-id="${esc(t.id)}" data-tag-key="${esc(t.key)}" data-tag-label="${esc(t.label)}" data-is-system="${t.is_system ? "1" : "0"}" data-usage="${t.usage_count || 0}">
           <div class="tag-row-head">
             <span class="tag-pos">${i + 1}</span>
-            <h4>${esc(t.label)} ${badge}</h4>
+            <h4>${esc(t.label)} ${onOff} ${sys}</h4>
           </div>
-          <div class="meta">key: ${esc(t.key)}</div>
+          <div class="meta">key: ${esc(t.key)}${usage}</div>
           <div class="actions">
             <button type="button" class="secondary" data-action="up" title="Move up">↑</button>
             <button type="button" class="secondary" data-action="down" title="Move down">↓</button>
             <button type="button" class="ghost" data-action="rename">Rename</button>
             <button type="button" class="ghost" data-action="toggle">${t.is_active ? "Disable" : "Enable"}</button>
-            <button type="button" class="ghost" data-action="delete">Delete</button>
+            ${delBtn}
           </div>
         </div>`;
       })
@@ -410,21 +418,79 @@ async function onTagsClick(e) {
         body: { is_active: enable },
       });
     } else if (btn.dataset.action === "delete") {
-      const label = card.dataset.tagLabel || "this tag";
-      const ok = await appConfirm({
-        title: "Delete tag?",
-        message: `Remove "${label}" from the catalog? Existing log entries keep their stored tag text.`,
-        confirmLabel: "Delete tag",
-        variant: "danger",
-      });
-      if (!ok) return;
-      await api(`/api/admin/tags/${encodeURIComponent(id)}`, { method: "DELETE" });
+      if (btn.disabled || card.dataset.isSystem === "1") {
+        if (st) {
+          st.textContent = "Default system tags cannot be deleted — disable them instead";
+          st.classList.add("error");
+        }
+        return;
+      }
+      await deleteCustomTag(id, card.dataset.tagLabel || "this tag", st);
     }
     await loadTagsAdmin();
   } catch (err) {
     if (st) {
       st.textContent = err.message || "Action failed";
       st.classList.add("error");
+    }
+  }
+}
+
+/** Delete custom tag; if in use, require a replacement from the catalog. */
+async function deleteCustomTag(id, label, st) {
+  const usage = Number(
+    document.querySelector(`.admin-card[data-tag-id="${CSS.escape(id)}"]`)?.dataset.usage || 0
+  );
+  let message = `Permanently remove "${label}" from the catalog?`;
+  if (usage > 0) {
+    message += ` It appears on ${usage} log${usage === 1 ? "" : "s"} — you will pick a replacement tag for those entries.`;
+  } else {
+    message += " It is not used on any logs.";
+  }
+  const ok = await appConfirm({
+    title: "Delete custom tag?",
+    message,
+    confirmLabel: usage > 0 ? "Choose replacement…" : "Delete tag",
+    variant: "danger",
+  });
+  if (!ok) return;
+
+  try {
+    await api(`/api/admin/tags/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      body: {},
+    });
+    if (st) {
+      st.textContent = `Deleted "${label}"`;
+      st.classList.remove("error");
+    }
+    return;
+  } catch (err) {
+    if (err.status !== 409 || !err.data?.needs_replacement) {
+      throw err;
+    }
+    const reps = err.data.replacements || [];
+    if (!reps.length) {
+      throw new Error("Tag is in use but no replacement tags exist — create or enable another tag first");
+    }
+    const replaceWith = await appSelect({
+      title: "Replacement tag",
+      message: `"${label}" is on ${err.data.usage_count} log(s). Choose which tag should replace it:`,
+      label: "Replace with",
+      options: reps.map((r) => ({
+        value: r.key,
+        label: `${r.label} (${r.key})${r.is_active ? "" : " — disabled"}`,
+      })),
+      confirmLabel: "Replace & delete",
+    });
+    if (!replaceWith) return;
+    await api(`/api/admin/tags/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      body: { replace_with: replaceWith },
+    });
+    if (st) {
+      st.textContent = `Deleted "${label}" and rewrote logs → ${replaceWith}`;
+      st.classList.remove("error");
     }
   }
 }

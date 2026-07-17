@@ -24,6 +24,7 @@ function ensureRoot() {
           <label class="app-dialog-label">
             <span class="app-dialog-label-text"></span>
             <input type="text" class="app-dialog-input" autocomplete="off" />
+            <select class="app-dialog-select" hidden></select>
           </label>
         </div>
         <div class="app-dialog-actions">
@@ -51,8 +52,13 @@ function wire(el) {
   cancel?.addEventListener("click", () => close(null));
   confirm?.addEventListener("click", () => {
     const field = el.querySelector(".app-dialog-field");
+    const select = el.querySelector(".app-dialog-select");
     if (field && !field.hidden) {
-      close(input.value);
+      if (select && !select.hidden) {
+        close(select.value);
+      } else {
+        close(input.value);
+      }
     } else {
       close(true);
     }
@@ -98,6 +104,11 @@ export function appConfirm({
     msg.textContent = message;
     msg.hidden = !message;
     el.querySelector(".app-dialog-field").hidden = true;
+    const select = el.querySelector(".app-dialog-select");
+    if (select) {
+      select.hidden = true;
+      select.innerHTML = "";
+    }
     const cancel = el.querySelector(".app-dialog-cancel");
     const confirmBtn = el.querySelector(".app-dialog-confirm");
     cancel.hidden = false;
@@ -139,6 +150,12 @@ export function appPrompt({
     el.querySelector(".app-dialog-field").hidden = false;
     el.querySelector(".app-dialog-label-text").textContent = label;
     const input = el.querySelector(".app-dialog-input");
+    const select = el.querySelector(".app-dialog-select");
+    if (select) {
+      select.hidden = true;
+      select.innerHTML = "";
+    }
+    input.hidden = false;
     input.value = defaultValue;
     input.placeholder = placeholder;
     const cancel = el.querySelector(".app-dialog-cancel");
@@ -155,6 +172,66 @@ export function appPrompt({
       input.select();
     }, 30);
   });
+}
+
+/**
+ * Select from a list of options.
+ * @param {{ title?: string, message?: string, label?: string, options: {value:string,label:string}[], confirmLabel?: string, cancelLabel?: string }} opts
+ * @returns {Promise<string|null>}
+ */
+export function appSelect({
+  title = "Choose",
+  message = "",
+  label = "Option",
+  options = [],
+  confirmLabel = "Continue",
+  cancelLabel = "Cancel",
+} = {}) {
+  const el = ensureRoot();
+  return new Promise((resolve) => {
+    resolveFn = (v) => {
+      if (v === null || v === true) {
+        resolve(null);
+        return;
+      }
+      resolve(String(v));
+    };
+    el.querySelector(".app-dialog-title").textContent = title;
+    const msg = el.querySelector(".app-dialog-message");
+    msg.textContent = message;
+    msg.hidden = !message;
+    el.querySelector(".app-dialog-field").hidden = false;
+    el.querySelector(".app-dialog-label-text").textContent = label;
+    const input = el.querySelector(".app-dialog-input");
+    const select = el.querySelector(".app-dialog-select");
+    input.hidden = true;
+    select.hidden = false;
+    select.innerHTML = options
+      .map((o) => `<option value="${escapeAttr(o.value)}">${escapeText(o.label)}</option>`)
+      .join("");
+    const cancel = el.querySelector(".app-dialog-cancel");
+    const confirmBtn = el.querySelector(".app-dialog-confirm");
+    cancel.hidden = false;
+    cancel.textContent = cancelLabel;
+    confirmBtn.textContent = confirmLabel;
+    confirmBtn.classList.remove("danger");
+    confirmBtn.classList.add("primary");
+    el.hidden = false;
+    document.body.classList.add("dialog-open");
+    setTimeout(() => select.focus(), 30);
+  });
+}
+
+function escapeAttr(s) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;");
+}
+function escapeText(s) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;");
 }
 
 /**

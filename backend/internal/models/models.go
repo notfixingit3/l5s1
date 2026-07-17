@@ -186,12 +186,15 @@ func (i InviteCode) Remaining() int {
 }
 
 // Tag is a curated health-log label managed by admins.
+// System tags (seeded defaults) can be enabled/disabled but never deleted.
+// Custom tags may be deleted; if used on logs, a replacement tag is required.
 type Tag struct {
 	ID        string    `gorm:"primaryKey;type:uuid" json:"id"`
 	Key       string    `gorm:"uniqueIndex;not null" json:"key"` // slug: uc-flare
 	Label     string    `gorm:"not null" json:"label"`           // display: UC flare
 	SortOrder int       `gorm:"default:0" json:"sort_order"`
 	IsActive  bool      `gorm:"default:true" json:"is_active"`
+	IsSystem  bool      `gorm:"default:false;not null" json:"is_system"` // seeded defaults
 	CreatedAt time.Time `json:"created_at"`
 }
 
