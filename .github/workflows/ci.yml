@@ -19,8 +19,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          # Pin a patched 1.24.x (stdlib vulns fixed after 1.24.0)
-          go-version: "1.24.13"
+          # Pin patched 1.25.x (stdlib vulns fixed through 1.25.12)
+          go-version: "1.25.12"
           cache-dependency-path: backend/go.sum
       - name: Test
         run: go test ./...

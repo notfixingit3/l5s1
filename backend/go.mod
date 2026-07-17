@@ -1,6 +1,6 @@
 module github.com/l5s1/health-registry
 
-go 1.24.13
+go 1.25.12
 
 require (
 	github.com/gin-gonic/gin v1.10.0

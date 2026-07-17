@@ -5,7 +5,7 @@
 
 services:
   app:
-    image: ghcr.io/notfixingit3/l5s1-4866:${IMAGE_TAG:-v0.0.1-beta.14}
+    image: ghcr.io/notfixingit3/l5s1:${IMAGE_TAG:-v0.0.1-beta.14}
     container_name: l5s1
     ports:
       - "8080:8080"

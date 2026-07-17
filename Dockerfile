@@ -5,8 +5,8 @@ ARG VERSION=0.0.1-beta.14
 ARG COMMIT=dev
 ARG BUILD_TIME=unknown
 
-# 1.24-bookworm tracks patched 1.24.x (stdlib security fixes)
-FROM golang:1.24-bookworm AS build
+# 1.25-bookworm tracks patched 1.25.x (stdlib security fixes)
+FROM golang:1.25-bookworm AS build
 ARG VERSION
 ARG COMMIT
 ARG BUILD_TIME
@@ -50,7 +50,7 @@ LABEL org.opencontainers.image.title="L5S1 Health Registry" \
       org.opencontainers.image.description="Passwordless multi-condition health tracking PWA" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.revision="${COMMIT}" \
-      org.opencontainers.image.source="https://github.com/notfixingit3/l5s1-4866"
+      org.opencontainers.image.source="https://github.com/notfixingit3/l5s1"
 
 ENV DATA_DIR=/data \
     DATABASE_DSN="file:/data/l5s1.db?cache=shared&mode=rwc" \
