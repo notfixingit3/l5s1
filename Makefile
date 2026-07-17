@@ -1,11 +1,9 @@
-.PHONY: up down rebuild logs test run data-backup data-reset dev help security gosec govulncheck lint-fe vet lab-sync lab-refresh
+.PHONY: up down rebuild logs test run data-backup data-reset dev help security gosec govulncheck lint-fe vet
 
 help: ## Show targets
 	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-16s %s\n", $$1, $$2}'
 
 VERSION := $(shell tr -d '[:space:]' < VERSION 2>/dev/null || echo 0.0.0-dev)
-LAB_HOST ?= house@notfixingit
-LAB_DIR  ?= /opt/stacks/l5s1_lazyapp
 
 up: ## Build & start Docker stack (passkeys persist in ./data)
 	mkdir -p data
@@ -18,15 +16,6 @@ pull-ghcr: ## Run published image (IMAGE_TAG=v0.0.1-beta.15)
 	docker compose -f docker-compose.ghcr.yml pull
 	docker compose -f docker-compose.ghcr.yml up -d
 	@echo "Open http://localhost:8080 · image tag $${IMAGE_TAG:-v0.0.1-beta.15}"
-
-lab-sync: ## Copy deploy/lazyapp compose to lab host (does not overwrite .env)
-	ssh $(LAB_HOST) "mkdir -p $(LAB_DIR)/data"
-	rsync -av --exclude '.env' --exclude 'data/' deploy/lazyapp/ $(LAB_HOST):$(LAB_DIR)/
-	@echo "Synced compose → $(LAB_HOST):$(LAB_DIR)  (edit .env on host if first deploy)"
-
-lab-refresh: ## Pull latest GHCR :dev on lab and recreate container
-	ssh $(LAB_HOST) 'cd $(LAB_DIR) && docker compose pull && docker compose up -d && docker compose ps'
-	@echo "Lab: https://l5s1.lazyapp.me"
 
 dev: ## Start with host frontend bind-mount for UI iteration
 	mkdir -p data

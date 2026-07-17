@@ -9,7 +9,7 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/). Versions fol
 ### Added
 - **Device link codes** — signed-in users mint a one-time 8-digit code (`xxxx-xxxx`) so another phone/laptop can register a passkey without already being logged in
 - Auth **Add device** tab + Profile **Generate device code** UI
-- Lab stack template `deploy/lazyapp` for `notfixingit:/opt/stacks/l5s1_lazyapp` (GHCR `:dev`, host bind `./data`)
+- Lab/hosted compose template `deploy/lazyapp` (GHCR `:dev`, host bind `./data`, Traefik labels)
 - Invite codes displayed as `xxxx-xxxx` (same format as device codes)
 
 ### Fixed

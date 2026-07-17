@@ -1,64 +1,38 @@
-# L5S1 lab stack (`l5s1_lazyapp`)
+# L5S1 reverse-proxy / lab compose
 
-Deploy path on the lab host:
-
-```text
-house@notfixingit:/opt/stacks/l5s1_lazyapp
-```
-
-Mirrors the pattern used by `askaway_lazyapp` / other `*_lazyapp` stacks: Traefik on `lazyapp_me`, Let's Encrypt, CrowdSec bouncer, GHCR image.
+Generic stack for hosting the published GHCR image behind Traefik (HTTPS + optional CrowdSec).
 
 | Item | Value |
 |------|--------|
-| URL | https://l5s1.lazyapp.me |
 | Image | `ghcr.io/notfixingit3/l5s1:dev` (override with `IMAGE_TAG`) |
-| Data | **Host bind** `./data` → `/data` (SQLite at `./data/l5s1.db`) — not a named Docker volume |
-| Network | external `lazyapp_me` |
+| Data | **Host bind** `./data` → `/data` (SQLite) — not a named Docker volume |
+| Network | external Docker network (default name `lazyapp_me`; change if yours differs) |
 
-## First-time setup (lab host)
+Copy this directory to your host, fill `.env` from `.env.example`, then:
 
 ```bash
-ssh house@notfixingit
-sudo mkdir -p /opt/stacks/l5s1_lazyapp   # if needed; chown house
-cd /opt/stacks/l5s1_lazyapp
-
-# copy compose + env from repo (or rsync deploy/lazyapp/)
-cp /path/to/L5S1/deploy/lazyapp/docker-compose.yml .
-cp /path/to/L5S1/deploy/lazyapp/.env.example .env
-# set CROWDSEC_BOUNCER_KEY (same as askaway_lazyapp)
-grep CROWDSEC /opt/stacks/askaway_lazyapp/.env >> .env   # or paste manually
-
 mkdir -p data
-docker compose pull
-docker compose up -d
-docker compose ps
-curl -fsS https://l5s1.lazyapp.me/api/healthz
-```
-
-Open **https://l5s1.lazyapp.me** (must match `WEBAUTHN_RP_ID` / origins for passkeys).
-
-## Refresh to latest `dev` build
-
-```bash
-cd /opt/stacks/l5s1_lazyapp
+cp .env.example .env   # set PREVIEW_HOST, WebAuthn origin, CROWDSEC_BOUNCER_KEY
 docker compose pull
 docker compose up -d
 ```
 
-`pull_policy: always` also re-pulls on recreate. SQLite lives on the host at  
-`/opt/stacks/l5s1_lazyapp/data/l5s1.db` (bind mount). Pull/up does not touch it.  
-Do **not** switch this to a named `volumes:` block — lab stacks keep data on disk next to compose.
-
-Pin a release instead of rolling dev:
+Refresh to the latest image:
 
 ```bash
-# in .env
-IMAGE_TAG=v0.0.1-beta.15
 docker compose pull && docker compose up -d
 ```
 
-## Notes
+### WebAuthn
 
-- Passkeys registered against `localhost` will **not** work on the lab host; register new ones under `l5s1.lazyapp.me`.
-- Package may be private — lab host needs `docker login ghcr.io` (already configured for other stacks).
-- CrowdSec bouncer key is required or Traefik middleware config will be empty.
+Set `WEBAUTHN_RP_ID` and `WEBAUTHN_ORIGINS` to your **public HTTPS hostname** (not `localhost`).  
+Passkeys created on localhost will not work on the public host and vice versa.
+
+### Data
+
+Keep SQLite on a host path next to compose (`./data`). Do not switch to a named Docker volume unless you intentionally want that.
+
+### Secrets
+
+- Never commit `.env` (CrowdSec keys, etc.).
+- Do not document private SSH hosts, usernames, or internal filesystem layouts in this repo.

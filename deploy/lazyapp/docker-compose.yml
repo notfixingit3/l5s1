@@ -1,9 +1,6 @@
-# Lab stack for notfixingit:/opt/stacks/l5s1_lazyapp
-# Tracks GHCR :dev — refresh with:
-#   docker compose pull && docker compose up -d
-#
-# Public URL: https://l5s1.lazyapp.me
-# WebAuthn RP ID/origin must match that host (set in .env).
+# Reverse-proxy / lab stack — GHCR image behind Traefik.
+# Refresh: docker compose pull && docker compose up -d
+# WebAuthn RP ID/origin must match PREVIEW_HOST (set in .env).
 
 services:
   app:
@@ -16,13 +13,13 @@ services:
       DATA_DIR: /data
       DATABASE_DSN: "file:/data/l5s1.db?cache=shared&mode=rwc"
       FRONTEND_DIR: /app/frontend
-      WEBAUTHN_RP_ID: ${WEBAUTHN_RP_ID:-l5s1.lazyapp.me}
-      WEBAUTHN_ORIGINS: ${WEBAUTHN_ORIGINS:-https://l5s1.lazyapp.me}
-      WEBAUTHN_RP_DISPLAY_NAME: ${WEBAUTHN_RP_DISPLAY_NAME:-L5S1 Health Registry (lab)}
+      WEBAUTHN_RP_ID: ${WEBAUTHN_RP_ID:?set WEBAUTHN_RP_ID in .env}
+      WEBAUTHN_ORIGINS: ${WEBAUTHN_ORIGINS:?set WEBAUTHN_ORIGINS in .env}
+      WEBAUTHN_RP_DISPLAY_NAME: ${WEBAUTHN_RP_DISPLAY_NAME:-L5S1 Health Registry}
       SEED_ADMIN_USERNAME: ${SEED_ADMIN_USERNAME:-admin}
       SECURE_COOKIE: ${SECURE_COOKIE:-true}
       GIN_MODE: release
-    # Host bind only — NO named Docker volumes (lab convention: ./data on the stack dir)
+    # Host bind only — prefer ./data next to compose (not a named Docker volume)
     volumes:
       - type: bind
         source: ./data
