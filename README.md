@@ -78,9 +78,11 @@ When ready: bump `VERSION` / CHANGELOG, commit, `git tag v0.0.1-beta.N && git pu
 
 | Doc | Path |
 |-----|------|
+| **Agent / process notes** | [AGENTS.md](./AGENTS.md) |
 | Changelog | [CHANGELOG.md](./CHANGELOG.md) |
 | Architecture | [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) |
 | Docker + passkeys | [docs/04-docker-passkeys.md](./docs/04-docker-passkeys.md) |
+| Multi-device codes | [docs/06-multi-device-codes.md](./docs/06-multi-device-codes.md) |
 | Security scans | [docs/05-security-scan.md](./docs/05-security-scan.md) |
 
 ## Sponsors
