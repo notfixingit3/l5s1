@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # L5S1 — multi-stage image (pure Go SQLite, CGO-free)
 
-ARG VERSION=0.0.1-beta.14
+ARG VERSION=0.0.1-beta.15
 ARG COMMIT=dev
 ARG BUILD_TIME=unknown
 

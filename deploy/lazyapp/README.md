@@ -53,7 +53,7 @@ Pin a release instead of rolling dev:
 
 ```bash
 # in .env
-IMAGE_TAG=v0.0.1-beta.14
+IMAGE_TAG=v0.0.1-beta.15
 docker compose pull && docker compose up -d
 ```
 

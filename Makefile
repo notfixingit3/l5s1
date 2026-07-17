@@ -13,11 +13,11 @@ up: ## Build & start Docker stack (passkeys persist in ./data)
 	docker compose up -d
 	@echo "Open http://localhost:8080  (use localhost, not 127.0.0.1) · v$(VERSION)"
 
-pull-ghcr: ## Run published image (IMAGE_TAG=v0.0.1-beta.14)
+pull-ghcr: ## Run published image (IMAGE_TAG=v0.0.1-beta.15)
 	mkdir -p data
 	docker compose -f docker-compose.ghcr.yml pull
 	docker compose -f docker-compose.ghcr.yml up -d
-	@echo "Open http://localhost:8080 · image tag $${IMAGE_TAG:-v0.0.1-beta.14}"
+	@echo "Open http://localhost:8080 · image tag $${IMAGE_TAG:-v0.0.1-beta.15}"
 
 lab-sync: ## Copy deploy/lazyapp compose to lab host (does not overwrite .env)
 	ssh $(LAB_HOST) "mkdir -p $(LAB_DIR)/data"
