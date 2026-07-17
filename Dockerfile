@@ -5,6 +5,7 @@ ARG VERSION=0.0.1-beta.14
 ARG COMMIT=dev
 ARG BUILD_TIME=unknown
 
+# 1.24-bookworm tracks patched 1.24.x (stdlib security fixes)
 FROM golang:1.24-bookworm AS build
 ARG VERSION
 ARG COMMIT
@@ -22,7 +23,8 @@ RUN printf '/** Build-stamped version */\nexport const APP_VERSION = "%s";\nexpo
       "$VERSION" "$COMMIT" > /frontend/js/version.js
 
 ENV CGO_ENABLED=0
-RUN go test ./... \
+RUN go version \
+ && go test ./... \
  && go build -trimpath \
       -ldflags="-s -w \
         -X github.com/l5s1/health-registry/internal/version.Version=${VERSION} \
