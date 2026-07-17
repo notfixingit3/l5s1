@@ -1,6 +1,7 @@
 name: Container
 
-# Multi-arch GHCR builds are expensive — only run for beta tags (and manual runs).
+# Multi-arch GHCR — only on beta tags (and manual runs).
+# Build amd64 + arm64 in parallel on native runners (no QEMU), then merge manifest.
 on:
   push:
     tags:
@@ -22,8 +23,33 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build-and-push:
+  # ——— CI gate (same job set as ci.yml, so image only ships if green) ———
+  test:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.12"
+          cache-dependency-path: backend/go.sum
+      - run: go test ./...
+      - run: go vet ./...
+
+  # ——— Native platform builds in parallel ———
+  build:
+    needs: test
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,16 +58,18 @@ jobs:
         id: meta_version
         run: |
           if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            RAW="${GITHUB_REF_NAME}"
-            VERSION="${RAW#v}"
+            VERSION="${GITHUB_REF_NAME#v}"
           else
-            # workflow_dispatch without a tag
             VERSION="$(tr -d '[:space:]' < VERSION 2>/dev/null || echo "0.0.0-dev")"
           fi
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "commit=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
           echo "build_time=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
-          echo "Resolved version=${VERSION} commit=${GITHUB_SHA::7}"
+
+      - name: Prepare
+        run: |
+          platform=${{ matrix.platform }}
+          echo "PLATFORM_PAIR=${platform//\//-}" >> "$GITHUB_ENV"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -58,6 +86,79 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: ${{ matrix.platform }}
+          # Cross-compile Go from BUILDPLATFORM when needed; native runners preferred
+          build-args: |
+            VERSION=${{ steps.meta_version.outputs.version }}
+            COMMIT=${{ steps.meta_version.outputs.commit }}
+            BUILD_TIME=${{ steps.meta_version.outputs.build_time }}
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=build-${{ env.PLATFORM_PAIR }}
+          cache-to: type=gha,mode=max,scope=build-${{ env.PLATFORM_PAIR }}
+
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ env.PLATFORM_PAIR }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # ——— Combine platform digests into one multi-arch tag set ———
+  merge:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Version metadata
+        id: meta_version
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="$(tr -d '[:space:]' < VERSION 2>/dev/null || echo "0.0.0-dev")"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "commit=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=semver,pattern={{raw}}
             type=semver,pattern={{version}}
@@ -65,42 +166,29 @@ jobs:
             type=raw,value=latest
             type=raw,value=dev
 
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            VERSION=${{ steps.meta_version.outputs.version }}
-            COMMIT=${{ steps.meta_version.outputs.commit }}
-            BUILD_TIME=${{ steps.meta_version.outputs.build_time }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64
+      - name: Create manifest list and push
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:%s ' *)
+
+      - name: Inspect
+        run: |
+          TAG=$(jq -r '.tags[0]' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+          docker buildx imagetools inspect "$TAG"
 
       - name: Summary
         run: |
           {
-            echo "## L5S1 container published"
+            echo "## L5S1 container published (multi-arch, native builders)"
             echo ""
             echo "**Version:** \`${{ steps.meta_version.outputs.version }}\`"
             echo "**Commit:** \`${{ steps.meta_version.outputs.commit }}\`"
+            echo "**Platforms:** linux/amd64 + linux/arm64 (parallel native runners)"
             echo ""
             echo "### Pull"
             echo '```bash'
             echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v${{ steps.meta_version.outputs.version }}"
             echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-            echo '```'
-            echo ""
-            echo "### Run (local WebAuthn)"
-            echo '```bash'
-            echo "docker run --rm -p 8080:8080 \\"
-            echo "  -e WEBAUTHN_RP_ID=localhost \\"
-            echo "  -e WEBAUTHN_ORIGINS=http://localhost:8080 \\"
-            echo "  -v l5s1-data:/data \\"
-            echo "  ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v${{ steps.meta_version.outputs.version }}"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"

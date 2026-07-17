@@ -32,8 +32,11 @@ make run       # host process, same ./data
 |-------|----|------------------------------|
 | Push to `dev` | No | No |
 | PR | No | No |
-| Tag `v*-beta.*` | Yes | Yes |
+| Tag `v*-beta.*` | Yes | Yes (parallel native amd64 + arm64) |
 | `workflow_dispatch` | Yes | Yes |
+
+Container builds: **no QEMU** — matrix on `ubuntu-latest` + `ubuntu-24.04-arm`, then merge digests.  
+Dockerfile skips `go test` (CI / `make test` cover that). Expect ~3–6 min vs ~15–18 min QEMU multi-arch.
 
 When ready to release:
 

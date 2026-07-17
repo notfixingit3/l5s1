@@ -1,19 +1,22 @@
 # syntax=docker/dockerfile:1
 # L5S1 — multi-stage image (pure Go SQLite, CGO-free)
+# Tests run in CI (make test), not here — keeps multi-arch image builds fast.
 
 ARG VERSION=0.0.1-beta.15
 ARG COMMIT=dev
 ARG BUILD_TIME=unknown
 
-# 1.25-bookworm tracks patched 1.25.x (stdlib security fixes)
-FROM golang:1.25-bookworm AS build
+FROM --platform=$BUILDPLATFORM golang:1.25-bookworm AS build
 ARG VERSION
 ARG COMMIT
 ARG BUILD_TIME
+ARG TARGETOS
+ARG TARGETARCH
 WORKDIR /src
 
 COPY backend/go.mod backend/go.sum ./
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
 
 COPY backend/ ./
 COPY frontend/ /frontend/
@@ -23,9 +26,10 @@ RUN printf '/** Build-stamped version */\nexport const APP_VERSION = "%s";\nexpo
       "$VERSION" "$COMMIT" > /frontend/js/version.js
 
 ENV CGO_ENABLED=0
-RUN go version \
- && go test ./... \
- && go build -trimpath \
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go version \
+ && GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -trimpath \
       -ldflags="-s -w \
         -X github.com/l5s1/health-registry/internal/version.Version=${VERSION} \
         -X github.com/l5s1/health-registry/internal/version.Commit=${COMMIT} \
