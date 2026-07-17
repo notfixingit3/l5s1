@@ -44,6 +44,7 @@
         <div class="auth-tabs" role="tablist" aria-label="Account">
           <button type="button" class="auth-tab active" role="tab" aria-selected="true" data-auth-tab="signin" id="tab-signin">Sign in</button>
           <button type="button" class="auth-tab" role="tab" aria-selected="false" data-auth-tab="signup" id="tab-signup">Create account</button>
+          <button type="button" class="auth-tab" role="tab" aria-selected="false" data-auth-tab="link" id="tab-link">Add device</button>
         </div>
 
         <!-- Sign in -->
@@ -59,9 +60,9 @@
         <div id="panel-signup" class="auth-panel" role="tabpanel" hidden>
           <label>
             Invite code <span class="hint">(new accounts only)</span>
-            <input id="signup-invite" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="8-digit code" autocapitalize="none" autocomplete="one-time-code" />
+            <input id="signup-invite" type="text" inputmode="numeric" maxlength="9" placeholder="1234-5678" autocapitalize="none" autocomplete="one-time-code" aria-describedby="signup-invite-hint" />
           </label>
-          <p class="field-hint">Required only for brand-new usernames. Pre-created accounts can leave this blank and just bind a passkey.</p>
+          <p class="field-hint" id="signup-invite-hint">Format <strong>1234-5678</strong>. Required only for brand-new usernames. Pre-created accounts can leave this blank.</p>
           <label>
             Username
             <input id="signup-username" type="text" autocomplete="username" placeholder="Choose a username" autocapitalize="none" autocorrect="off" spellcheck="false" />
@@ -76,6 +77,21 @@
             <input id="signup-display-name" type="text" autocomplete="name" placeholder="How you want to appear" />
           </label>
           <button type="button" id="btn-register" class="primary wide">Create account with passkey</button>
+        </div>
+
+        <!-- Add this device (device-link code from Profile on another device) -->
+        <div id="panel-link" class="auth-panel" role="tabpanel" hidden>
+          <p class="field-hint">Already have an account? On your other device open <strong>Profile → Add another device</strong>, then enter the one-time code here.</p>
+          <label>
+            Username
+            <input id="link-username" type="text" autocomplete="username" placeholder="Your username" autocapitalize="none" autocorrect="off" spellcheck="false" />
+          </label>
+          <label>
+            Device code
+            <input id="link-code" type="text" inputmode="numeric" maxlength="9" placeholder="1234-5678" autocapitalize="none" autocomplete="one-time-code" />
+          </label>
+          <p class="field-hint">Codes expire after 20 minutes and work once.</p>
+          <button type="button" id="btn-link-device" class="primary wide">Add passkey on this device</button>
         </div>
 
         <div class="secure-note">
@@ -229,6 +245,23 @@
         <ul id="device-list" class="device-list"></ul>
         <p id="profile-status" class="status" role="status"></p>
         <button type="button" id="btn-add-passkey" class="secondary wide">Add passkey on this device</button>
+
+        <div class="section-title"><h3>Add another device</h3></div>
+        <p class="muted">Generate a one-time code (xxxx-xxxx) to register a passkey on a phone or computer that doesn’t have one yet. Codes expire in 20 minutes.</p>
+        <label class="profile-edit">
+          Optional note
+          <input id="device-code-label" type="text" maxlength="64" placeholder="e.g. iPad at home" />
+        </label>
+        <button type="button" id="btn-mint-device-code" class="primary wide">Generate device code</button>
+        <div id="device-code-active" class="device-code-banner" hidden>
+          <div class="device-code-display" id="device-code-value">————</div>
+          <p class="field-hint" id="device-code-meta"></p>
+          <div class="device-code-actions">
+            <button type="button" id="btn-copy-device-code" class="secondary">Copy code</button>
+            <button type="button" id="btn-revoke-device-code" class="ghost">Revoke</button>
+          </div>
+        </div>
+        <ul id="device-code-list" class="device-code-list"></ul>
       </section>
 
       <!-- Admin (role=admin only) -->

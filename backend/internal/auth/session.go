@@ -11,12 +11,13 @@ import (
 
 // CeremonySession holds WebAuthn SessionData between begin and finish.
 type CeremonySession struct {
-	Data       webauthn.SessionData
-	Email      string
-	UserID     string
-	DeviceType string
-	InviteID   string // redeem on successful register finish
-	ExpiresAt  time.Time
+	Data             webauthn.SessionData
+	Email            string
+	UserID           string
+	DeviceType       string
+	InviteID         string // redeem on successful register finish (new accounts)
+	DeviceLinkCodeID string // redeem on successful register finish (extra device)
+	ExpiresAt        time.Time
 }
 
 // AppSession is the authenticated browser session after login/register.

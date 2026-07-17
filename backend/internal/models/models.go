@@ -125,9 +125,10 @@ const (
 const RecommendedTagOrderVersion = "2"
 
 // InviteCode gates new account creation (not required for seeded admin bootstrap).
+// Code is stored as 8 digits; UI displays as xxxx-xxxx.
 type InviteCode struct {
 	ID          string     `gorm:"primaryKey;type:uuid" json:"id"`
-	Code        string     `gorm:"uniqueIndex;size:8;not null" json:"code"` // 8-digit
+	Code        string     `gorm:"uniqueIndex;size:8;not null" json:"code"` // 8-digit, no hyphen
 	Label       string     `json:"label"`                                   // admin note, e.g. "Family"
 	MaxUses     int        `gorm:"not null;default:1" json:"max_uses"`
 	UsedCount   int        `gorm:"not null;default:0" json:"used_count"`
@@ -135,6 +136,34 @@ type InviteCode struct {
 	CreatedByID string     `gorm:"index" json:"created_by_id"`
 	CreatedAt   time.Time  `json:"created_at"`
 	ExpiresAt   *time.Time `json:"expires_at,omitempty"`
+}
+
+// DeviceLinkCode lets a signed-in user authorize passkey registration on another device.
+// Single-use, short TTL. Code stored as 8 digits; UI shows xxxx-xxxx.
+type DeviceLinkCode struct {
+	ID        string     `gorm:"primaryKey;type:uuid" json:"id"`
+	UserID    string     `gorm:"index;not null" json:"user_id"`
+	Code      string     `gorm:"uniqueIndex;size:8;not null" json:"code"` // 8-digit, no hyphen
+	Label     string     `json:"label"`                                   // optional note e.g. "Mom's iPad"
+	CreatedAt time.Time  `json:"created_at"`
+	ExpiresAt time.Time  `gorm:"index;not null" json:"expires_at"`
+	UsedAt    *time.Time `json:"used_at,omitempty"`
+	RevokedAt *time.Time `json:"revoked_at,omitempty"`
+}
+
+func (d *DeviceLinkCode) BeforeCreate(tx *gorm.DB) error {
+	if d.ID == "" {
+		d.ID = uuid.NewString()
+	}
+	return nil
+}
+
+// IsUsable reports whether the code can still authorize a new passkey.
+func (d DeviceLinkCode) IsUsable(now time.Time) bool {
+	if d.UsedAt != nil || d.RevokedAt != nil {
+		return false
+	}
+	return now.Before(d.ExpiresAt)
 }
 
 func (i *InviteCode) BeforeCreate(tx *gorm.DB) error {

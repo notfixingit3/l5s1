@@ -116,8 +116,20 @@ export function detectDeviceLabel() {
   return "Device";
 }
 
+/** Normalize typed codes (accepts 12345678 or 1234-5678). */
+export function normalizeCode(raw) {
+  return String(raw || "").replace(/\D/g, "").slice(0, 8);
+}
+
+/** Display form xxxx-xxxx */
+export function formatCodeDisplay(raw) {
+  const d = normalizeCode(raw);
+  if (d.length !== 8) return String(raw || "").trim();
+  return `${d.slice(0, 4)}-${d.slice(4)}`;
+}
+
 /**
- * @param {{ username?: string, email?: string, display_name?: string, invite_code?: string, device_type?: string }} profile
+ * @param {{ username?: string, email?: string, display_name?: string, invite_code?: string, device_link_code?: string, device_type?: string }} profile
  */
 export async function registerPasskey(profile) {
   const body = {
@@ -125,6 +137,7 @@ export async function registerPasskey(profile) {
     email: profile.email || "",
     display_name: profile.display_name || "",
     invite_code: profile.invite_code || "",
+    device_link_code: profile.device_link_code || "",
     device_type: profile.device_type || detectDeviceLabel(),
   };
   const options = await api("/api/auth/register/begin", {

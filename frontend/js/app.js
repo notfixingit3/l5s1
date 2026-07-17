@@ -1,4 +1,11 @@
-import { detectDeviceLabel, loginPasskey, logout, me, registerPasskey } from "./auth.js";
+import {
+  detectDeviceLabel,
+  loginPasskey,
+  logout,
+  me,
+  normalizeCode,
+  registerPasskey,
+} from "./auth.js";
 import { initPatient, loadTags } from "./patient.js";
 import { initPartner } from "./partner.js";
 import { initClinician } from "./clinician.js";
@@ -202,11 +209,12 @@ userChip?.addEventListener("click", () => {
 
 /* ——— Auth tabs ——— */
 function setAuthTab(which) {
-  const signin = which === "signin";
   const panelSignin = document.getElementById("panel-signin");
   const panelSignup = document.getElementById("panel-signup");
-  if (panelSignin) panelSignin.hidden = !signin;
-  if (panelSignup) panelSignup.hidden = signin;
+  const panelLink = document.getElementById("panel-link");
+  if (panelSignin) panelSignin.hidden = which !== "signin";
+  if (panelSignup) panelSignup.hidden = which !== "signup";
+  if (panelLink) panelLink.hidden = which !== "link";
   document.querySelectorAll(".auth-tab").forEach((t) => {
     const on = t.dataset.authTab === which;
     t.classList.toggle("active", on);
@@ -230,8 +238,10 @@ function authStatusEl() {
 function setAuthBusy(busy) {
   const login = document.getElementById("btn-login");
   const reg = document.getElementById("btn-register");
+  const link = document.getElementById("btn-link-device");
   if (login) login.disabled = busy;
   if (reg) reg.disabled = busy;
+  if (link) link.disabled = busy;
 }
 
 function friendlyAuthError(err) {
@@ -241,12 +251,29 @@ function friendlyAuthError(err) {
   if (/no passkeys/i.test(msg)) {
     return "No passkey yet — open Create account with this username (invite not required for existing demo accounts).";
   }
+  if (/device code|add another passkey/i.test(msg)) {
+    return msg;
+  }
   if (detail) return `${msg}: ${detail}`;
   return msg;
 }
 
+/** Live-format xxxx-xxxx in code inputs */
+function wireCodeInput(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener("input", () => {
+    const digits = normalizeCode(el.value);
+    const caretAtEnd = el.selectionStart === el.value.length;
+    el.value = digits.length > 4 ? `${digits.slice(0, 4)}-${digits.slice(4)}` : digits;
+    if (caretAtEnd) el.setSelectionRange(el.value.length, el.value.length);
+  });
+}
+wireCodeInput("signup-invite");
+wireCodeInput("link-code");
+
 document.getElementById("btn-register")?.addEventListener("click", async () => {
-  const invite = (document.getElementById("signup-invite")?.value || "").replace(/\D/g, "").trim();
+  const invite = normalizeCode(document.getElementById("signup-invite")?.value || "");
   const username = document.getElementById("signup-username").value.trim();
   const email = document.getElementById("signup-email").value.trim();
   const displayName = document.getElementById("signup-display-name").value.trim();
@@ -269,9 +296,8 @@ document.getElementById("btn-register")?.addEventListener("click", async () => {
     return;
   }
   // Invite is optional in the form: required only for brand-new usernames (server enforces).
-  // Seeded accounts (tom, jess, admin) already exist — no invite needed.
   if (invite && invite.length !== 8) {
-    st.textContent = "Invite code must be 8 digits (or leave blank if activating a pre-created account)";
+    st.textContent = "Invite code must be 8 digits (xxxx-xxxx), or leave blank for a pre-created account";
     st.classList.add("error");
     return;
   }
@@ -288,6 +314,40 @@ document.getElementById("btn-register")?.addEventListener("click", async () => {
     });
     currentUser = await me();
     st.textContent = "Account ready";
+    showApp();
+  } catch (err) {
+    st.textContent = friendlyAuthError(err);
+    st.classList.add("error");
+  } finally {
+    setAuthBusy(false);
+  }
+});
+
+document.getElementById("btn-link-device")?.addEventListener("click", async () => {
+  const username = document.getElementById("link-username")?.value.trim() || "";
+  const code = normalizeCode(document.getElementById("link-code")?.value || "");
+  const st = authStatusEl();
+  st.classList.remove("error");
+  if (!username || username.length < 3) {
+    st.textContent = "Enter your username";
+    st.classList.add("error");
+    return;
+  }
+  if (code.length !== 8) {
+    st.textContent = "Enter the 8-digit device code (xxxx-xxxx)";
+    st.classList.add("error");
+    return;
+  }
+  setAuthBusy(true);
+  st.textContent = "Creating passkey on this device…";
+  try {
+    await registerPasskey({
+      username,
+      device_link_code: code,
+      device_type: detectDeviceLabel(),
+    });
+    currentUser = await me();
+    st.textContent = "Device linked — you’re signed in";
     showApp();
   } catch (err) {
     st.textContent = friendlyAuthError(err);

@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/l5s1/health-registry/internal/auth"
+	"github.com/l5s1/health-registry/internal/codes"
 	"github.com/l5s1/health-registry/internal/middleware"
 	"github.com/l5s1/health-registry/internal/models"
 	"github.com/l5s1/health-registry/internal/services"
@@ -26,15 +27,18 @@ type AuthHandler struct {
 	ConfigCache  *services.ConfigCache
 	CookieName   string
 	SecureCookie bool
+	// CodeLimiter protects invite / device-link guessing (shared).
+	CodeLimiter *codes.AttemptLimiter
 }
 
 type registerBeginRequest struct {
-	Username    string `json:"username"`
-	Email       string `json:"email"`
-	DisplayName string `json:"display_name"`
-	InviteCode  string `json:"invite_code"` // required for new accounts (not admin bootstrap)
-	Role        string `json:"role"`        // optional: patient (default) | partner
-	DeviceType  string `json:"device_type"`
+	Username       string `json:"username"`
+	Email          string `json:"email"`
+	DisplayName    string `json:"display_name"`
+	InviteCode     string `json:"invite_code"`      // new accounts
+	DeviceLinkCode string `json:"device_link_code"` // extra device on existing account
+	Role           string `json:"role"`             // optional: patient (default) | partner
+	DeviceType     string `json:"device_type"`
 }
 
 type loginBeginRequest struct {
@@ -104,7 +108,8 @@ func (h *AuthHandler) RegisterBegin(c *gin.Context) {
 	username := normalizeUsername(req.Username)
 	email := normalizeEmail(req.Email)
 	displayName := strings.TrimSpace(req.DisplayName)
-	inviteCode := strings.TrimSpace(req.InviteCode)
+	inviteCode := codes.Normalize(req.InviteCode)
+	deviceLinkRaw := strings.TrimSpace(req.DeviceLinkCode)
 	deviceType := strings.TrimSpace(req.DeviceType)
 	if deviceType == "" {
 		deviceType = "unknown"
@@ -117,9 +122,27 @@ func (h *AuthHandler) RegisterBegin(c *gin.Context) {
 	var user models.User
 	var isNew bool
 	var inviteID string
+	var deviceLinkID string
 
-	if sessOK && username == "" {
-		// Logged-in passkey add: load session user
+	// Path A: device-link code on a new browser (not logged in) — multi-device bootstrap
+	if deviceLinkRaw != "" && (!sessOK || username != "") {
+		if !validUsername(username) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "username required with device code"})
+			return
+		}
+		link, u, err := h.peekDeviceLink(c, username, deviceLinkRaw)
+		if err != nil {
+			status := http.StatusForbidden
+			if strings.Contains(err.Error(), "too many") {
+				status = http.StatusTooManyRequests
+			}
+			c.JSON(status, gin.H{"error": err.Error()})
+			return
+		}
+		user = *u
+		deviceLinkID = link.ID
+	} else if sessOK && username == "" {
+		// Path B: logged-in passkey add on this device
 		if err := h.DB.First(&user, "id = ?", sess.UserID).Error; err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "session user not found"})
 			return
@@ -151,9 +174,13 @@ func (h *AuthHandler) RegisterBegin(c *gin.Context) {
 				return
 			}
 			// Invite required for brand-new accounts (prevents mass signups)
-			inv, invErr := consumeInvitePreview(h.DB, inviteCode)
+			inv, invErr := consumeInvitePreview(h.DB, h.CodeLimiter, c.ClientIP(), inviteCode)
 			if invErr != nil {
-				c.JSON(http.StatusForbidden, gin.H{"error": invErr.Error()})
+				status := http.StatusForbidden
+				if strings.Contains(invErr.Error(), "too many") {
+					status = http.StatusTooManyRequests
+				}
+				c.JSON(status, gin.H{"error": invErr.Error()})
 				return
 			}
 			inviteID = inv.ID
@@ -215,7 +242,7 @@ func (h *AuthHandler) RegisterBegin(c *gin.Context) {
 			if credCount > 0 && !user.ForceReReg {
 				if !sessOK || sess.UserID != user.ID {
 					c.JSON(http.StatusUnauthorized, gin.H{
-						"error": "login required to add another passkey device",
+						"error": "login required to add another passkey — use a device code from Profile on your other device",
 					})
 					return
 				}
@@ -237,11 +264,12 @@ func (h *AuthHandler) RegisterBegin(c *gin.Context) {
 	}
 
 	tok, err := h.Store.PutCeremony(auth.CeremonySession{
-		Data:       *sessionData,
-		Email:      user.Username,
-		UserID:     user.ID,
-		DeviceType: deviceType,
-		InviteID:   inviteID,
+		Data:             *sessionData,
+		Email:            user.Username,
+		UserID:           user.ID,
+		DeviceType:       deviceType,
+		InviteID:         inviteID,
+		DeviceLinkCodeID: deviceLinkID,
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "session store"})
@@ -300,11 +328,15 @@ func (h *AuthHandler) RegisterFinish(c *gin.Context) {
 		return
 	}
 
-	// Redeem invite only after a successful passkey (not on abandoned begins)
+	// Redeem invite / device-link only after a successful passkey (not on abandoned begins)
 	if cs.InviteID != "" {
 		if err := redeemInvite(h.DB, cs.InviteID); err != nil {
 			// Credential is already saved; surface soft warning but still log the user in
-			// (orphan redeem failure is rare — race on max uses)
+			_ = err
+		}
+	}
+	if cs.DeviceLinkCodeID != "" {
+		if err := redeemDeviceLink(h.DB, cs.DeviceLinkCodeID); err != nil {
 			_ = err
 		}
 	}
@@ -671,27 +703,41 @@ func DecodeJSON(r io.Reader, v any) error {
 }
 
 // consumeInvitePreview validates an invite without incrementing use count.
-func consumeInvitePreview(db *gorm.DB, code string) (*models.InviteCode, error) {
-	code = strings.TrimSpace(code)
-	if len(code) != 8 {
-		return nil, errInvite("invite code required (8 digits)")
+func consumeInvitePreview(db *gorm.DB, lim *codes.AttemptLimiter, clientIP, raw string) (*models.InviteCode, error) {
+	key := "inv:ip:" + clientIP
+	if lim != nil && !lim.Allow(key, false) {
+		return nil, errInvite("too many attempts — try again in a few minutes")
 	}
-	for _, r := range code {
-		if r < '0' || r > '9' {
-			return nil, errInvite("invite code must be 8 digits")
+	code := codes.Normalize(raw)
+	if !codes.Valid(code) {
+		if lim != nil {
+			lim.Allow(key, true)
 		}
+		return nil, errInvite("invite code required (8 digits, e.g. 1234-5678)")
 	}
 	var inv models.InviteCode
 	if err := db.Where("code = ?", code).First(&inv).Error; err != nil {
+		if lim != nil {
+			lim.Allow(key, true)
+		}
 		return nil, errInvite("invalid invite code")
 	}
 	if !inv.IsActive {
+		if lim != nil {
+			lim.Allow(key, true)
+		}
 		return nil, errInvite("invite code is disabled")
 	}
 	if inv.ExpiresAt != nil && inv.ExpiresAt.Before(time.Now().UTC()) {
+		if lim != nil {
+			lim.Allow(key, true)
+		}
 		return nil, errInvite("invite code has expired")
 	}
 	if inv.Remaining() <= 0 {
+		if lim != nil {
+			lim.Allow(key, true)
+		}
 		return nil, errInvite("invite code has no remaining uses")
 	}
 	return &inv, nil

@@ -4,9 +4,11 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/l5s1/health-registry/internal/auth"
+	"github.com/l5s1/health-registry/internal/codes"
 	"github.com/l5s1/health-registry/internal/handlers"
 	"github.com/l5s1/health-registry/internal/middleware"
 	"github.com/l5s1/health-registry/internal/services"
@@ -31,6 +33,9 @@ func New(d Deps) *gin.Engine {
 	r.Use(gin.Logger(), gin.Recovery())
 	r.Use(corsMiddleware())
 
+	// 12 failed code guesses / 15 min per key — enough for typos, hard for brute force
+	codeLimiter := codes.NewAttemptLimiter(12, 15*time.Minute)
+
 	authH := &handlers.AuthHandler{
 		DB:           d.DB,
 		WA:           d.WA,
@@ -38,6 +43,7 @@ func New(d Deps) *gin.Engine {
 		ConfigCache:  d.ConfigCache,
 		CookieName:   d.CookieName,
 		SecureCookie: d.SecureCookie,
+		CodeLimiter:  codeLimiter,
 	}
 	healthH := &handlers.HealthHandler{DB: d.DB}
 	partnerH := &handlers.PartnerHandler{DB: d.DB}
@@ -64,6 +70,10 @@ func New(d Deps) *gin.Engine {
 			a.PATCH("/profile", mw.RequireAuth(), authH.PatchProfile)
 			a.PATCH("/devices/:credId", mw.RequireAuth(), authH.RenameDevice)
 			a.DELETE("/devices/:credId", mw.RequireAuth(), authH.RevokeDevice)
+			// Multi-device bootstrap: mint short-lived codes on a trusted device
+			a.GET("/device-codes", mw.RequireAuth(), authH.ListDeviceLinkCodes)
+			a.POST("/device-codes", mw.RequireAuth(), authH.CreateDeviceLinkCode)
+			a.DELETE("/device-codes/:id", mw.RequireAuth(), authH.RevokeDeviceLinkCode)
 		}
 
 		// Patient health logs

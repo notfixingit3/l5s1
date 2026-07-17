@@ -1,0 +1,58 @@
+# Lab stack for notfixingit:/opt/stacks/l5s1_lazyapp
+# Tracks GHCR :dev — refresh with:
+#   docker compose pull && docker compose up -d
+#
+# Public URL: https://l5s1.lazyapp.me
+# WebAuthn RP ID/origin must match that host (set in .env).
+
+services:
+  app:
+    image: ghcr.io/notfixingit3/l5s1:${IMAGE_TAG:-dev}
+    pull_policy: always
+    container_name: l5s1_lazyapp
+    restart: unless-stopped
+    environment:
+      PORT: "8080"
+      DATA_DIR: /data
+      DATABASE_DSN: "file:/data/l5s1.db?cache=shared&mode=rwc"
+      FRONTEND_DIR: /app/frontend
+      WEBAUTHN_RP_ID: ${WEBAUTHN_RP_ID:-l5s1.lazyapp.me}
+      WEBAUTHN_ORIGINS: ${WEBAUTHN_ORIGINS:-https://l5s1.lazyapp.me}
+      WEBAUTHN_RP_DISPLAY_NAME: ${WEBAUTHN_RP_DISPLAY_NAME:-L5S1 Health Registry (lab)}
+      SEED_ADMIN_USERNAME: ${SEED_ADMIN_USERNAME:-admin}
+      SECURE_COOKIE: ${SECURE_COOKIE:-true}
+      GIN_MODE: release
+    # Host bind only — NO named Docker volumes (lab convention: ./data on the stack dir)
+    volumes:
+      - type: bind
+        source: ./data
+        target: /data
+    networks:
+      - lazyapp
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/api/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.l5s1_lazyapp.service=l5s1_lazyapp"
+      - "traefik.http.routers.l5s1_lazyapp.rule=Host(`${PREVIEW_HOST}`)"
+      - "traefik.http.routers.l5s1_lazyapp.entrypoints=websecure"
+      - "traefik.http.routers.l5s1_lazyapp.tls.certResolver=lets-encrypt"
+      - "traefik.http.routers.l5s1_lazyapp.middlewares=crowdsec-l5s1_lazyapp"
+      - "traefik.http.services.l5s1_lazyapp.loadbalancer.server.port=8080"
+      - "traefik.http.middlewares.https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.l5s1_lazyapp_http.rule=Host(`${PREVIEW_HOST}`)"
+      - "traefik.http.routers.l5s1_lazyapp_http.entrypoints=web"
+      - "traefik.http.routers.l5s1_lazyapp_http.middlewares=https-redirect"
+      - "traefik.http.middlewares.crowdsec-l5s1_lazyapp.plugin.crowdsec-bouncer.enable=true"
+      - "traefik.http.middlewares.crowdsec-l5s1_lazyapp.plugin.crowdsec-bouncer.crowdseclapikey=${CROWDSEC_BOUNCER_KEY}"
+
+networks:
+  lazyapp:
+    external: true
+    name: lazyapp_me

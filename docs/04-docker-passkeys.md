@@ -66,6 +66,28 @@ make data-backup
 
 Restore: stop app, replace `data/l5s1.db`, start again. Passkeys work if the browser still has the private key material (platform authenticator) **and** RPID/origin still match.
 
+## Lab (lazyapp) deploy
+
+Stack lives on the lab host as **`/opt/stacks/l5s1_lazyapp`** (same pattern as `askaway_lazyapp`):
+
+| | |
+|--|--|
+| URL | https://l5s1.lazyapp.me |
+| Image | `ghcr.io/notfixingit3/l5s1:dev` |
+| Compose | [`deploy/lazyapp/`](../deploy/lazyapp/) |
+
+```bash
+# from laptop (after first-time .env on host)
+make lab-sync      # push compose files
+make lab-refresh   # docker compose pull && up -d
+
+# or on the host
+cd /opt/stacks/l5s1_lazyapp
+docker compose pull && docker compose up -d
+```
+
+Lab WebAuthn uses `WEBAUTHN_RP_ID=l5s1.lazyapp.me` and `SECURE_COOKIE=true`. Passkeys are **not** shared with local `localhost` registrations.
+
 ## Production note
 
 For real deploys: HTTPS, real domain as RPID, `SECURE_COOKIE=true`, and a managed volume or Postgres — not `localhost`.

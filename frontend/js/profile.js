@@ -1,14 +1,19 @@
 import { api } from "./api.js";
-import { detectDeviceLabel, me, registerPasskey, updateProfile } from "./auth.js";
+import { detectDeviceLabel, formatCodeDisplay, me, registerPasskey, updateProfile } from "./auth.js";
 import { appConfirm } from "./dialog.js";
 
 let onProfileChange = null;
+let latestActiveCodeId = null;
 
 export function initProfile(opts = {}) {
   onProfileChange = opts.onChange || null;
   document.getElementById("btn-add-passkey")?.addEventListener("click", addPasskeyHere);
   document.getElementById("btn-save-profile")?.addEventListener("click", saveProfile);
   document.getElementById("device-list")?.addEventListener("click", onDeviceListClick);
+  document.getElementById("btn-mint-device-code")?.addEventListener("click", mintDeviceCode);
+  document.getElementById("btn-copy-device-code")?.addEventListener("click", copyActiveDeviceCode);
+  document.getElementById("btn-revoke-device-code")?.addEventListener("click", revokeActiveDeviceCode);
+  document.getElementById("device-code-list")?.addEventListener("click", onDeviceCodeListClick);
 }
 
 export async function refreshProfile() {
@@ -32,14 +37,13 @@ export async function refreshProfile() {
     if (em) em.value = user.email || "";
 
     const devices = user.devices || [];
-    if (!list) return user;
-    if (!devices.length) {
-      list.innerHTML = `<li class="empty-state">No passkeys yet.</li>`;
-      return user;
-    }
-    list.innerHTML = devices
-      .map(
-        (d) => `
+    if (list) {
+      if (!devices.length) {
+        list.innerHTML = `<li class="empty-state">No passkeys yet.</li>`;
+      } else {
+        list.innerHTML = devices
+          .map(
+            (d) => `
       <li class="device-card" data-id="${escapeAttr(d.id)}">
         <div class="device-main">
           <input
@@ -59,8 +63,12 @@ export async function refreshProfile() {
           <button type="button" class="ghost device-remove" data-action="remove">Remove</button>
         </div>
       </li>`
-      )
-      .join("");
+          )
+          .join("");
+      }
+    }
+
+    await refreshDeviceCodes();
     return user;
   } catch (err) {
     if (list) list.innerHTML = `<li class="empty-state">Could not load devices</li>`;
@@ -70,6 +78,131 @@ export async function refreshProfile() {
     }
     return null;
   }
+}
+
+async function refreshDeviceCodes() {
+  const list = document.getElementById("device-code-list");
+  const banner = document.getElementById("device-code-active");
+  const valueEl = document.getElementById("device-code-value");
+  const metaEl = document.getElementById("device-code-meta");
+  try {
+    const data = await api("/api/auth/device-codes");
+    const codes = data.device_codes || [];
+    const active = codes.find((c) => c.usable);
+    latestActiveCodeId = active?.id || null;
+
+    if (banner && valueEl && metaEl) {
+      if (active) {
+        banner.hidden = false;
+        valueEl.textContent = active.code_display || formatCodeDisplay(active.code);
+        const exp = active.expires_at ? new Date(active.expires_at) : null;
+        metaEl.textContent = exp
+          ? `Valid until ${exp.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} · single use`
+          : "Single use · expires soon";
+      } else {
+        banner.hidden = true;
+        valueEl.textContent = "————";
+        metaEl.textContent = "";
+      }
+    }
+
+    if (!list) return;
+    const others = codes.filter((c) => !c.usable).slice(0, 8);
+    if (!others.length) {
+      list.innerHTML = "";
+      return;
+    }
+    list.innerHTML = others
+      .map((c) => {
+        const label = c.label ? escapeAttr(c.label) + " · " : "";
+        return `<li class="device-code-item" data-id="${escapeAttr(c.id)}">
+          <span class="mono">${escapeAttr(c.code_display || formatCodeDisplay(c.code))}</span>
+          <span class="muted">${label}${escapeAttr(c.status)}</span>
+        </li>`;
+      })
+      .join("");
+  } catch {
+    if (list) list.innerHTML = "";
+  }
+}
+
+async function mintDeviceCode() {
+  const st = document.getElementById("profile-status");
+  const btn = document.getElementById("btn-mint-device-code");
+  st?.classList.remove("error");
+  if (btn) btn.disabled = true;
+  try {
+    const label = document.getElementById("device-code-label")?.value.trim() || "";
+    const data = await api("/api/auth/device-codes", {
+      method: "POST",
+      body: { label },
+    });
+    const dc = data.device_code;
+    if (st) {
+      st.textContent = `Code ${dc?.code_display || ""} ready — enter it on the other device under Add device`;
+    }
+    if (document.getElementById("device-code-label")) {
+      document.getElementById("device-code-label").value = "";
+    }
+    await refreshDeviceCodes();
+  } catch (err) {
+    if (st) {
+      st.textContent = err.message || "Could not create device code";
+      st.classList.add("error");
+    }
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function copyActiveDeviceCode() {
+  const valueEl = document.getElementById("device-code-value");
+  const st = document.getElementById("profile-status");
+  const text = (valueEl?.textContent || "").trim();
+  if (!text || text.includes("—")) return;
+  try {
+    await navigator.clipboard.writeText(text.replace(/\s/g, ""));
+    if (st) {
+      st.textContent = `Copied ${text}`;
+      st.classList.remove("error");
+    }
+  } catch {
+    if (st) {
+      st.textContent = "Could not copy — select the code manually";
+      st.classList.add("error");
+    }
+  }
+}
+
+async function revokeActiveDeviceCode() {
+  if (!latestActiveCodeId) return;
+  const ok = await appConfirm({
+    title: "Revoke device code?",
+    message: "This code will stop working immediately. You can generate a new one anytime.",
+    confirmLabel: "Revoke",
+    variant: "danger",
+  });
+  if (!ok) return;
+  const st = document.getElementById("profile-status");
+  try {
+    await api(`/api/auth/device-codes/${encodeURIComponent(latestActiveCodeId)}`, {
+      method: "DELETE",
+    });
+    if (st) {
+      st.textContent = "Device code revoked";
+      st.classList.remove("error");
+    }
+    await refreshDeviceCodes();
+  } catch (err) {
+    if (st) {
+      st.textContent = err.message || "Revoke failed";
+      st.classList.add("error");
+    }
+  }
+}
+
+async function onDeviceCodeListClick() {
+  /* list is informational for used/expired codes */
 }
 
 async function saveProfile() {

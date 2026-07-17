@@ -1,9 +1,6 @@
 package handlers
 
 import (
-	"crypto/rand"
-	"fmt"
-	"math/big"
 	"net/http"
 	"regexp"
 	"strings"
@@ -11,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/l5s1/health-registry/internal/auth"
+	"github.com/l5s1/health-registry/internal/codes"
 	"github.com/l5s1/health-registry/internal/database"
 	"github.com/l5s1/health-registry/internal/middleware"
 	"github.com/l5s1/health-registry/internal/models"
@@ -198,14 +196,6 @@ func (h *AdminHandler) RevokeCredential(c *gin.Context) {
 
 // ——— Invites ———
 
-func generateEightDigitCode() (string, error) {
-	n, err := rand.Int(rand.Reader, big.NewInt(100_000_000))
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%08d", n.Int64()), nil
-}
-
 // ListInvites GET /api/admin/invites
 func (h *AdminHandler) ListInvites(c *gin.Context) {
 	var invites []models.InviteCode
@@ -215,11 +205,16 @@ func (h *AdminHandler) ListInvites(c *gin.Context) {
 	}
 	type row struct {
 		models.InviteCode
-		Remaining int `json:"remaining"`
+		CodeDisplay string `json:"code_display"`
+		Remaining   int    `json:"remaining"`
 	}
 	out := make([]row, 0, len(invites))
 	for _, inv := range invites {
-		out = append(out, row{InviteCode: inv, Remaining: inv.Remaining()})
+		out = append(out, row{
+			InviteCode:  inv,
+			CodeDisplay: codes.FormatDisplay(inv.Code),
+			Remaining:   inv.Remaining(),
+		})
 	}
 	c.JSON(http.StatusOK, gin.H{"invites": out})
 }
@@ -245,7 +240,7 @@ func (h *AdminHandler) CreateInvite(c *gin.Context) {
 
 	var code string
 	for attempt := 0; attempt < 12; attempt++ {
-		cnd, err := generateEightDigitCode()
+		cnd, err := codes.Generate()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "could not generate code"})
 			return
@@ -280,8 +275,9 @@ func (h *AdminHandler) CreateInvite(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{
-		"invite":    inv,
-		"remaining": inv.Remaining(),
+		"invite":       inv,
+		"code_display": codes.FormatDisplay(inv.Code),
+		"remaining":    inv.Remaining(),
 	})
 }
 

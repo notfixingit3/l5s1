@@ -65,6 +65,7 @@ func Migrate(db *gorm.DB) error {
 		&models.HealthLog{},
 		&models.AppConfig{},
 		&models.InviteCode{},
+		&models.DeviceLinkCode{},
 		&models.Tag{},
 	)
 	if err != nil {

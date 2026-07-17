@@ -494,13 +494,19 @@ input[type="range"]::-moz-range-thumb {
 
 .auth-tabs {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 0.25rem;
   padding: 0.25rem;
   margin: 0 0 1rem;
   background: var(--surface-soft);
   border: 1px solid var(--border);
   border-radius: var(--radius-pill);
+}
+
+@media (max-width: 380px) {
+  .auth-tabs {
+    grid-template-columns: 1fr;
+  }
 }
 
 .auth-tab {
@@ -1262,6 +1268,57 @@ hr {
   font-size: 0.72rem;
   color: var(--muted);
   font-weight: 500;
+}
+
+.device-code-banner {
+  margin-top: 0.85rem;
+  padding: 1rem;
+  background: linear-gradient(145deg, var(--primary-soft), var(--surface-tint));
+  border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--border));
+  border-radius: var(--radius-sm);
+  text-align: center;
+}
+
+.device-code-display {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 1.65rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--primary-ink);
+  margin: 0.25rem 0 0.5rem;
+}
+
+.device-code-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-top: 0.65rem;
+}
+
+.device-code-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.75rem 0 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.device-code-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.82rem;
+  padding: 0.45rem 0.55rem;
+  background: var(--surface-soft);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.device-code-item .mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 600;
+  letter-spacing: 0.06em;
 }
 
 .device-actions {

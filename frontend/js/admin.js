@@ -176,13 +176,14 @@ async function loadInvites() {
     }
     box.innerHTML = invites
       .map((inv) => {
+        const display = inv.code_display || formatInviteCode(inv.code);
         const active = inv.is_active && inv.remaining > 0;
         const badge = active
           ? `<span class="badge-ok">${inv.remaining} left</span>`
           : `<span class="badge-locked">Exhausted/off</span>`;
         return `
         <div class="admin-card" data-invite-id="${esc(inv.id)}">
-          <div class="admin-code">${esc(inv.code)}</div>
+          <div class="admin-code">${esc(display)}</div>
           <div class="meta">${esc(inv.label || "Invite")} · max ${inv.max_uses} · used ${inv.used_count} ${badge}</div>
           <div class="actions">
             <button type="button" class="secondary" data-action="copy">Copy code</button>
@@ -199,6 +200,12 @@ async function loadInvites() {
   }
 }
 
+function formatInviteCode(raw) {
+  const d = String(raw || "").replace(/\D/g, "");
+  if (d.length !== 8) return String(raw || "");
+  return `${d.slice(0, 4)}-${d.slice(4)}`;
+}
+
 async function createInvite() {
   const st = document.getElementById("admin-invites-status");
   const btn = document.getElementById("btn-create-invite");
@@ -213,7 +220,8 @@ async function createInvite() {
         expires_in_days: Number(document.getElementById("invite-expires-days")?.value || 0),
       },
     });
-    if (st) st.textContent = `Created code ${data.invite?.code || ""}`;
+    const shown = data.code_display || formatInviteCode(data.invite?.code || "");
+    if (st) st.textContent = `Created code ${shown}`;
     document.getElementById("invite-label").value = "";
     await loadInvites();
   } catch (err) {
