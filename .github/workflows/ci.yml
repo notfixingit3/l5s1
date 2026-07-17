@@ -1,12 +1,11 @@
 name: CI
 
-# Run checks on beta tags and on PRs into dev (not every push to dev).
+# Pre-tag testing is local (make test / make security).
+# GitHub CI only runs when cutting a beta tag.
 on:
   push:
     tags:
       - "v*-beta.*"
-  pull_request:
-    branches: [dev]
   workflow_dispatch:
 
 permissions:

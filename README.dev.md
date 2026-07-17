@@ -61,14 +61,18 @@ curl -s http://localhost:8080/api/version
 
 ## Local development
 
+Test **before** cutting a beta tag — GitHub only builds on `v*-beta.*` tags.
+
 ```bash
-make up       # Docker
+make up       # Docker (local image)
 make test     # Go tests
 make security # gosec + govulncheck + eslint
 make run      # host Go process, shared ./data
 ```
 
 **Important:** Use **http://localhost:8080** (not `127.0.0.1`) so WebAuthn passkeys stay valid.
+
+When ready: bump `VERSION` / CHANGELOG, commit, `git tag v0.0.1-beta.N && git push origin v0.0.1-beta.N` → CI + multi-arch GHCR.
 
 ## Docs
 
