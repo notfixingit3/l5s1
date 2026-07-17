@@ -2,7 +2,7 @@
 # L5S1 — multi-stage image (pure Go SQLite, CGO-free)
 # Tests run in CI (make test), not here — keeps multi-arch image builds fast.
 
-ARG VERSION=0.0.1-beta.15
+ARG VERSION=0.0.1-beta.16
 ARG COMMIT=dev
 ARG BUILD_TIME=unknown
 

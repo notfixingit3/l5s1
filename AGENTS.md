@@ -50,9 +50,9 @@ Image tags published on beta cut: `v0.0.1-beta.N`, `latest`, `dev` (alias of new
 
 ## Version display
 
-- Product version = clean string from `VERSION` / tag (e.g. `0.0.1-beta.15`)
+- Product version = clean string from `VERSION` / tag (e.g. `0.0.1-beta.16`)
 - Commit stamped **separately** via ldflags / `version.js`
-- Display: `v0.0.1-beta.15` or `v0.0.1-beta.15+abc1234`
+- Display: `v0.0.1-beta.16` or `v0.0.1-beta.16+abc1234`
 - **Never** bake `-g{sha}` into the version string *and* append `+{sha}` (doubled hash)
 
 ## WebAuthn / passkeys (critical)
