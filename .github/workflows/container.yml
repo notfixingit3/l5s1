@@ -1,11 +1,10 @@
 name: Container
 
+# Multi-arch GHCR builds are expensive — only run for beta tags (and manual runs).
 on:
   push:
-    branches: [dev]
-    tags: ["v*"]
-  pull_request:
-    branches: [dev]
+    tags:
+      - "v*-beta.*"
   workflow_dispatch:
 
 permissions:
@@ -13,6 +12,10 @@ permissions:
   packages: write
   attestations: write
   id-token: write
+
+concurrency:
+  group: container-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   REGISTRY: ghcr.io
@@ -28,17 +31,12 @@ jobs:
       - name: Version metadata
         id: meta_version
         run: |
-          # Product version stays clean (from tag or VERSION file).
-          # Commit is stamped separately — display is v{VERSION}+{COMMIT},
-          # so do NOT also bake -g{sha} into VERSION (that doubled the hash).
           if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             RAW="${GITHUB_REF_NAME}"
             VERSION="${RAW#v}"
           else
+            # workflow_dispatch without a tag
             VERSION="$(tr -d '[:space:]' < VERSION 2>/dev/null || echo "0.0.0-dev")"
-            if [[ "${GITHUB_REF_NAME}" != "dev" && "${GITHUB_REF_NAME}" != "main" ]]; then
-              VERSION="${VERSION}-${GITHUB_REF_NAME}"
-            fi
           fi
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "commit=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
@@ -49,7 +47,6 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to GHCR
-        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -62,18 +59,18 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=ref,event=branch
             type=semver,pattern={{raw}}
             type=semver,pattern={{version}}
             type=sha,prefix=sha-
-            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=raw,value=latest
+            type=raw,value=dev
 
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
@@ -85,7 +82,6 @@ jobs:
           platforms: linux/amd64,linux/arm64
 
       - name: Summary
-        if: github.event_name != 'pull_request'
         run: |
           {
             echo "## L5S1 container published"
@@ -95,10 +91,8 @@ jobs:
             echo ""
             echo "### Pull"
             echo '```bash'
-            echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}"
-            if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-              echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-            fi
+            echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v${{ steps.meta_version.outputs.version }}"
+            echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
             echo '```'
             echo ""
             echo "### Run (local WebAuthn)"
@@ -107,6 +101,6 @@ jobs:
             echo "  -e WEBAUTHN_RP_ID=localhost \\"
             echo "  -e WEBAUTHN_ORIGINS=http://localhost:8080 \\"
             echo "  -v l5s1-data:/data \\"
-            echo "  ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}"
+            echo "  ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v${{ steps.meta_version.outputs.version }}"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"

@@ -4,7 +4,7 @@ Generic stack for hosting the published GHCR image behind Traefik (HTTPS + optio
 
 | Item | Value |
 |------|--------|
-| Image | `ghcr.io/notfixingit3/l5s1:dev` (override with `IMAGE_TAG`) |
+| Image | `ghcr.io/notfixingit3/l5s1:latest` or pin `v0.0.1-beta.N` via `IMAGE_TAG` |
 | Data | **Host bind** `./data` → `/data` (SQLite) — not a named Docker volume |
 | Network | external Docker network (default name `lazyapp_me`; change if yours differs) |
 

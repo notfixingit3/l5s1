@@ -4,7 +4,7 @@
 
 services:
   app:
-    image: ghcr.io/notfixingit3/l5s1:${IMAGE_TAG:-dev}
+    image: ghcr.io/notfixingit3/l5s1:${IMAGE_TAG:-latest}
     pull_policy: always
     container_name: l5s1_lazyapp
     restart: unless-stopped

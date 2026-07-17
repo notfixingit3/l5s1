@@ -9,7 +9,7 @@
   <img src="branding/logo-lockup-readme.png" alt="L5S1 Health Registry" width="360" />
 </p>
 
-[![CI](https://github.com/notfixingit3/l5s1/actions/workflows/ci.yml/badge.svg?branch=dev)](https://github.com/notfixingit3/l5s1/actions/workflows/ci.yml)
+[![CI](https://github.com/notfixingit3/l5s1/actions/workflows/ci.yml/badge.svg)](https://github.com/notfixingit3/l5s1/actions/workflows/ci.yml)
 [![Container](https://github.com/notfixingit3/l5s1/actions/workflows/container.yml/badge.svg)](https://github.com/notfixingit3/l5s1/actions/workflows/container.yml)
 
 Progressive Web App for multi-condition health tracking with passwordless multi-device WebAuthn, partner observation, clinician summary, and admin controls.
@@ -20,10 +20,10 @@ Images are built by GitHub Actions on every push to `dev` and on every `v*` tag.
 
 | Tag | Meaning |
 |-----|---------|
-| `ghcr.io/notfixingit3/l5s1:v0.0.1-beta.15` | Immutable release (this beta) |
-| `ghcr.io/notfixingit3/l5s1:latest` | Latest **tagged** release |
-| `ghcr.io/notfixingit3/l5s1:dev` | Latest build from `dev` branch |
-| `ghcr.io/notfixingit3/l5s1:sha-<short>` | Exact commit |
+| `ghcr.io/notfixingit3/l5s1:v0.0.1-beta.15` | Immutable beta tag |
+| `ghcr.io/notfixingit3/l5s1:latest` | Newest beta tag |
+| `ghcr.io/notfixingit3/l5s1:dev` | Alias of newest beta (same as `latest`) |
+| `ghcr.io/notfixingit3/l5s1:sha-<short>` | Exact commit (from that tag build) |
 
 ### Run a tagged beta
 

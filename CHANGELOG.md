@@ -27,9 +27,10 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/). Versions fol
 ```bash
 docker pull ghcr.io/notfixingit3/l5s1:v0.0.1-beta.15
 # or
-docker pull ghcr.io/notfixingit3/l5s1:latest   # tracks newest tag
-docker pull ghcr.io/notfixingit3/l5s1:dev       # rolling lab/dev
+docker pull ghcr.io/notfixingit3/l5s1:latest   # newest beta tag
 ```
+
+Container images are built only when a `v*-beta.*` tag is pushed (not on every `dev` commit).
 
 ## [0.0.1-beta.14] — 2026-07-17
 
