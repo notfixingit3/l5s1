@@ -1,11 +1,11 @@
 # Run a published GHCR image instead of building locally.
 # Usage:
 #   docker compose -f docker-compose.ghcr.yml up -d
-# Optional: IMAGE_TAG=v0.0.1-beta.21 docker compose -f docker-compose.ghcr.yml up -d
+# Optional: IMAGE_TAG=v0.0.1-beta.22 docker compose -f docker-compose.ghcr.yml up -d
 
 services:
   app:
-    image: ghcr.io/notfixingit3/l5s1:${IMAGE_TAG:-v0.0.1-beta.21}
+    image: ghcr.io/notfixingit3/l5s1:${IMAGE_TAG:-v0.0.1-beta.22}
     container_name: l5s1
     ports:
       - "8080:8080"

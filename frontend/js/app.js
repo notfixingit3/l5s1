@@ -50,6 +50,26 @@ function isAuthed() {
   return Boolean(currentUser && appEl?.classList.contains("is-authed"));
 }
 
+function userIsAdmin(user = currentUser) {
+  return String(user?.role || "").toLowerCase() === "admin";
+}
+
+/** Show/hide Admin tab. Uses attribute + inline display so cached CSS cannot leave it stuck. */
+function setAdminTabVisible(show) {
+  if (!tabAdmin) return;
+  if (show) {
+    tabAdmin.hidden = false;
+    tabAdmin.removeAttribute("hidden");
+    tabAdmin.style.display = "flex";
+    tabAdmin.setAttribute("aria-hidden", "false");
+  } else {
+    tabAdmin.hidden = true;
+    tabAdmin.setAttribute("hidden", "");
+    tabAdmin.style.display = "none";
+    tabAdmin.setAttribute("aria-hidden", "true");
+  }
+}
+
 function hideAllAppViews() {
   Object.entries(views).forEach(([key, v]) => {
     if (!v) return;
@@ -72,7 +92,7 @@ function lockToAuth(msg = "", isError = false) {
   }
   if (topbarActions) topbarActions.hidden = true;
   if (userChip) userChip.hidden = true;
-  if (tabAdmin) tabAdmin.hidden = true;
+  setAdminTabVisible(false);
   if (headerContext) headerContext.textContent = "Health Registry";
   const st = document.getElementById("auth-status");
   if (st && msg) {
@@ -107,13 +127,8 @@ function showApp() {
   if (topbarActions) topbarActions.hidden = false;
   if (views.auth) views.auth.hidden = true;
 
-  const isAdmin = currentUser.role === "admin";
-  if (tabAdmin) {
-    tabAdmin.hidden = !isAdmin;
-    // Ensure admin tab is in the layout and tappable on mobile
-    tabAdmin.style.display = isAdmin ? "" : "none";
-    tabAdmin.setAttribute("aria-hidden", isAdmin ? "false" : "true");
-  }
+  const isAdmin = userIsAdmin(currentUser);
+  setAdminTabVisible(isAdmin);
 
   applyUserChip(currentUser);
 
@@ -129,12 +144,7 @@ function showApp() {
         if (!user) return;
         currentUser = user;
         applyUserChip(user);
-        if (tabAdmin) {
-          const admin = user.role === "admin";
-          tabAdmin.hidden = !admin;
-          tabAdmin.style.display = admin ? "" : "none";
-          tabAdmin.setAttribute("aria-hidden", admin ? "false" : "true");
-        }
+        setAdminTabVisible(userIsAdmin(user));
       },
     });
     initAdmin();
@@ -153,15 +163,18 @@ function setMode(next) {
     return;
   }
 
-  if (next === "admin" && currentUser.role !== "admin") {
+  if (next === "admin" && !userIsAdmin()) {
     next = "patient";
   }
   mode = next in MODE_META ? next : "patient";
   const meta = MODE_META[mode];
 
+  // Keep Admin visibility in sync on every mode change
+  setAdminTabVisible(userIsAdmin());
+
   document.querySelectorAll("#tabbar .tab").forEach((b) => {
     // Skip truly hidden tabs (e.g. Admin for non-admins)
-    if (b.hidden || b.getAttribute("aria-hidden") === "true") return;
+    if (b.hidden || b.hasAttribute("hidden")) return;
     const on = b.dataset.mode === mode;
     b.classList.toggle("active", on);
     if (on) b.setAttribute("aria-current", "page");
@@ -189,11 +202,12 @@ function setMode(next) {
       if (user) {
         currentUser = user;
         applyUserChip(user);
+        setAdminTabVisible(userIsAdmin(user));
       }
     });
   }
   if (mode === "admin") {
-    if (currentUser.role !== "admin") {
+    if (!userIsAdmin()) {
       setMode("patient");
       return;
     }
@@ -203,7 +217,9 @@ function setMode(next) {
     loadTags();
   }
 
+  // Scroll the app pane (body no longer scrolls when signed in)
   try {
+    if (appEl) appEl.scrollTop = 0;
     window.scrollTo(0, 0);
   } catch {
     /* ignore */
@@ -217,7 +233,7 @@ tabbar?.addEventListener("click", (e) => {
     return;
   }
   const btn = e.target.closest("button[data-mode]");
-  if (!btn || btn.hidden) return;
+  if (!btn || btn.hidden || btn.hasAttribute("hidden")) return;
   e.preventDefault();
   setMode(btn.dataset.mode);
 });
