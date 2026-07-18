@@ -11,7 +11,7 @@ Built for people managing overlapping conditions (e.g. stenosis, UC, blood press
 | **App** | [l5s1.com](https://l5s1.com) |
 | **Code** | Active work on [`dev`](https://github.com/notfixingit3/l5s1/tree/dev) · this branch is the landing pointer |
 | **Images** | [ghcr.io/notfixingit3/l5s1](https://github.com/notfixingit3/l5s1/pkgs/container/l5s1) |
-| **Current beta** | [`v0.0.1-beta.24`](https://github.com/notfixingit3/l5s1/releases/tag/v0.0.1-beta.24) |
+| **Current beta** | [`v0.0.1-beta.25`](https://github.com/notfixingit3/l5s1/releases/tag/v0.0.1-beta.25) |
 
 ## What it does
 
@@ -24,20 +24,20 @@ Built for people managing overlapping conditions (e.g. stenosis, UC, blood press
 ## Run with Docker
 
 ```bash
-docker pull ghcr.io/notfixingit3/l5s1:v0.0.1-beta.24
+docker pull ghcr.io/notfixingit3/l5s1:v0.0.1-beta.25
 
 docker run --rm -p 8080:8080 \
   -e WEBAUTHN_RP_ID=localhost \
   -e WEBAUTHN_ORIGINS=http://localhost:8080 \
   -v l5s1-data:/data \
-  ghcr.io/notfixingit3/l5s1:v0.0.1-beta.24
+  ghcr.io/notfixingit3/l5s1:v0.0.1-beta.25
 ```
 
 Open **http://localhost:8080** (must be `localhost` for local passkeys).
 
 | Image tag | Notes |
 |-----------|--------|
-| `v0.0.1-beta.24` | This beta |
+| `v0.0.1-beta.25` | This beta |
 | `latest` | Newest beta tag |
 
 ## Develop

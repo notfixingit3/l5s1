@@ -93,19 +93,19 @@ func backfillEnabledPacks(db *gorm.DB) error {
 	return res.Error
 }
 
-// DefaultTags returns the curated tag catalog in fast-entry order:
-// side → body region → sensation → movement → conditions/vitals.
+// DefaultTags returns the curated tag catalog in fast-entry order.
+// Grouped by pack themes; sort_order keeps picker readable when multiple packs are on.
 func DefaultTags() []models.Tag {
 	// All seeded catalog entries are system tags (never deletable).
 	mk := func(key, label string, order int) models.Tag {
 		return models.Tag{Key: key, Label: label, SortOrder: order, IsActive: true, IsSystem: true}
 	}
 	return []models.Tag{
-		// Laterality first — tap Left/Right then region
+		// General — laterality
 		mk("left", "Left", 10),
 		mk("right", "Right", 20),
 		mk("both-sides", "Both sides", 30),
-		// Body regions (high-use for stenosis / back)
+		// Stenosis / spine — regions
 		mk("lower-back", "Lower back", 40),
 		mk("hips", "Hips", 50),
 		mk("glute", "Glute", 60),
@@ -113,7 +113,7 @@ func DefaultTags() []models.Tag {
 		mk("thigh", "Thigh", 80),
 		mk("calf", "Calf", 90),
 		mk("foot", "Foot", 100),
-		// Sensations
+		// Stenosis — sensations
 		mk("numbing", "Numbing", 110),
 		mk("pins-needles", "Pins & needles", 120),
 		mk("tingling", "Tingling", 130),
@@ -122,17 +122,47 @@ func DefaultTags() []models.Tag {
 		mk("dull-ache", "Dull ache", 160),
 		mk("radiating", "Radiating", 170),
 		mk("cramping", "Cramping", 180),
-		// Function / movement
+		// Stenosis — function
 		mk("weakness", "Weakness", 190),
 		mk("stiffness", "Stiffness", 200),
 		mk("limping", "Limping", 210),
-		// Conditions / vitals (less frequent per-entry)
 		mk("stenosis", "Stenosis", 220),
-		mk("uc-flare", "UC flare", 230),
-		mk("bp-high", "BP high", 240),
-		mk("bp-ok", "BP ok", 250),
-		mk("glucose-high", "Glucose high", 260),
-		mk("glucose-low", "Glucose low", 270),
+		// UC / IBD
+		mk("uc-flare", "UC flare", 300),
+		mk("abdominal-pain", "Abdominal pain", 310),
+		mk("urgency", "Urgency", 320),
+		mk("diarrhea", "Diarrhea", 330),
+		mk("blood-stool", "Blood in stool", 340),
+		mk("bloating", "Bloating", 350),
+		mk("nausea", "Nausea", 360),
+		mk("mucus", "Mucus", 370),
+		mk("night-stools", "Night stools", 380),
+		mk("bathroom-trips", "Many bathroom trips", 390),
+		// Heart
+		mk("bp-high", "BP high", 400),
+		mk("bp-ok", "BP ok", 410),
+		mk("chest-pain", "Chest pain", 420),
+		mk("chest-tightness", "Chest tightness", 430),
+		mk("palpitations", "Palpitations", 440),
+		mk("heart-racing", "Heart racing", 450),
+		mk("shortness-of-breath", "Shortness of breath", 460),
+		mk("dizziness", "Dizziness", 470),
+		mk("ankle-swelling", "Ankle swelling", 480),
+		// Diabetes
+		mk("glucose-high", "Glucose high", 500),
+		mk("glucose-low", "Glucose low", 510),
+		// Sleep apnea
+		mk("morning-headache", "Morning headache", 600),
+		mk("headache", "Headache", 610),
+		mk("daytime-tired", "Daytime tired", 620),
+		mk("unrefreshing-sleep", "Unrefreshing sleep", 630),
+		mk("snoring", "Snoring", 640),
+		mk("gasping", "Gasping / choking", 650),
+		mk("dry-mouth", "Dry mouth", 660),
+		mk("brain-fog", "Brain fog", 670),
+		mk("restless-sleep", "Restless sleep", 680),
+		mk("naps", "Naps", 690),
+		mk("insomnia", "Insomnia", 700),
 	}
 }
 

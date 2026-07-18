@@ -19,21 +19,40 @@ import (
 func TestPackNormalizeAndEffectiveKeys(t *testing.T) {
 	require.Equal(t, []string{"diabetes", "stenosis"}, packs.NormalizeEnabled([]string{"stenosis", "diabetes", "general", "nope"}))
 	require.Empty(t, packs.NormalizeEnabled([]string{"general"}))
+	require.Equal(t, []string{"heart", "sleep-apnea", "uc"}, packs.NormalizeEnabled([]string{"uc", "heart", "sleep-apnea"}))
 
 	onlyGen := packs.EffectiveKeys(nil)
 	require.Contains(t, onlyGen, "left")
 	require.NotContains(t, onlyGen, "glucose-high")
 	require.NotContains(t, onlyGen, "foot")
+	require.NotContains(t, onlyGen, "uc-flare")
 
 	withSten := packs.EffectiveKeys([]string{"stenosis"})
 	require.Contains(t, withSten, "left")
 	require.Contains(t, withSten, "foot")
 	require.Contains(t, withSten, "burning")
 	require.NotContains(t, withSten, "glucose-high")
+	require.NotContains(t, withSten, "morning-headache")
 
 	withBoth := packs.EffectiveKeys([]string{"stenosis", "diabetes"})
 	require.Contains(t, withBoth, "glucose-low")
 	require.Contains(t, withBoth, "glute")
+
+	withUC := packs.EffectiveKeys([]string{"uc"})
+	require.Contains(t, withUC, "uc-flare")
+	require.Contains(t, withUC, "diarrhea")
+	require.NotContains(t, withUC, "chest-pain")
+
+	withHeart := packs.EffectiveKeys([]string{"heart"})
+	require.Contains(t, withHeart, "bp-high")
+	require.Contains(t, withHeart, "palpitations")
+	require.NotContains(t, withHeart, "snoring")
+
+	withSleep := packs.EffectiveKeys([]string{"sleep-apnea"})
+	require.Contains(t, withSleep, "morning-headache")
+	require.Contains(t, withSleep, "daytime-tired")
+	require.Contains(t, withSleep, "snoring")
+	require.NotContains(t, withSleep, "glucose-high")
 }
 
 func TestListActiveFiltersByPacks(t *testing.T) {
@@ -80,8 +99,10 @@ func TestListActiveFiltersByPacks(t *testing.T) {
 	require.True(t, keys["left"])
 	require.True(t, keys["foot"])
 	require.False(t, keys["glucose-high"])
-	// unassigned system tags still visible
-	require.True(t, keys["uc-flare"] || keys["bp-high"])
+	// UC / heart / sleep tags only when those packs are enabled
+	require.False(t, keys["uc-flare"])
+	require.False(t, keys["bp-high"])
+	require.False(t, keys["morning-headache"])
 
 	// Enable diabetes only (drop stenosis)
 	bodyPut := `{"packs":["diabetes"]}`
@@ -107,4 +128,28 @@ func TestListActiveFiltersByPacks(t *testing.T) {
 	require.True(t, keys["glucose-high"])
 	require.False(t, keys["foot"])
 	require.False(t, keys["burning"])
+
+	// UC pack
+	req4 := httptest.NewRequest(http.MethodPut, "/packs", strings.NewReader(`{"packs":["uc"]}`))
+	req4.Header.Set("Content-Type", "application/json")
+	req4.AddCookie(&http.Cookie{Name: "l5s1_session", Value: tok})
+	w4 := httptest.NewRecorder()
+	r.ServeHTTP(w4, req4)
+	require.Equal(t, http.StatusOK, w4.Code)
+
+	req5 := httptest.NewRequest(http.MethodGet, "/tags", nil)
+	req5.AddCookie(&http.Cookie{Name: "l5s1_session", Value: tok})
+	w5 := httptest.NewRecorder()
+	r.ServeHTTP(w5, req5)
+	require.Equal(t, http.StatusOK, w5.Code)
+	body.Tags = nil
+	require.NoError(t, json.Unmarshal(w5.Body.Bytes(), &body))
+	keys = map[string]bool{}
+	for _, trow := range body.Tags {
+		keys[trow.Key] = true
+	}
+	require.True(t, keys["uc-flare"])
+	require.True(t, keys["diarrhea"])
+	require.False(t, keys["palpitations"])
+	require.False(t, keys["snoring"])
 }

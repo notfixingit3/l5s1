@@ -4,6 +4,21 @@ All notable changes to L5S1 are documented here.
 
 Format inspired by [Keep a Changelog](https://keepachangelog.com/). Versions follow pre-release semver: `v0.0.1-beta.N`.
 
+## [0.0.1-beta.25] — 2026-07-17
+
+### Added
+- **Tag packs:** UC / IBD, Heart, Sleep apnea (opt-in alongside Stenosis and Diabetes)
+  - UC: flare, urgency, diarrhea, blood in stool, bloating, nausea, mucus, night stools, bathroom trips
+  - Heart: BP high/ok, chest pain/tightness, palpitations, heart racing, SOB, dizziness, ankle swelling
+  - Sleep apnea: morning headache, headache, daytime tired, unrefreshing sleep, snoring, gasping, dry mouth, brain fog, restless sleep, naps, insomnia
+- New system catalog tags seeded automatically; `TAG_ORDER_VERSION` → 3
+
+### Images
+```bash
+docker pull ghcr.io/notfixingit3/l5s1:v0.0.1-beta.25
+docker pull ghcr.io/notfixingit3/l5s1:latest
+```
+
 ## [0.0.1-beta.24] — 2026-07-17
 
 ### Added

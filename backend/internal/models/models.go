@@ -158,7 +158,7 @@ const (
 
 // RecommendedTagOrderVersion bumps when default fast-entry tag order changes.
 // Existing DBs re-apply recommended sort_order once per version (custom order after that sticks).
-const RecommendedTagOrderVersion = "2"
+const RecommendedTagOrderVersion = "3"
 
 // InviteCode gates new account creation (not required for seeded admin bootstrap).
 // Code is stored as 8 digits; UI displays as xxxx-xxxx.

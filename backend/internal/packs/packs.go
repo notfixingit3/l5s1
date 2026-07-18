@@ -9,13 +9,16 @@ import (
 
 // Pack keys (stable API / storage ids).
 const (
-	PackGeneral  = "general"
-	PackStenosis = "stenosis"
-	PackDiabetes = "diabetes"
+	PackGeneral    = "general"
+	PackStenosis   = "stenosis"
+	PackDiabetes   = "diabetes"
+	PackUC         = "uc"
+	PackHeart      = "heart"
+	PackSleepApnea = "sleep-apnea"
 )
 
 // DefaultEnabledPacks is applied for new users and empty DB defaults.
-// Stenosis matches the product focus; diabetes is opt-in.
+// Stenosis matches the product focus; other condition packs are opt-in.
 const DefaultEnabledPacks = PackStenosis
 
 // Pack is a named group of catalog tag keys.
@@ -27,7 +30,7 @@ type Pack struct {
 	TagKeys     []string `json:"tag_keys"`
 }
 
-// Catalog is the built-in pack set for v1.
+// Catalog is the built-in pack set.
 func Catalog() []Pack {
 	return []Pack{
 		{
@@ -59,6 +62,39 @@ func Catalog() []Pack {
 			AlwaysOn:    false,
 			TagKeys: []string{
 				"glucose-high", "glucose-low",
+			},
+		},
+		{
+			Key:         PackUC,
+			Label:       "UC / IBD",
+			Description: "Ulcerative colitis and gut flare tags",
+			AlwaysOn:    false,
+			TagKeys: []string{
+				"uc-flare",
+				"abdominal-pain", "urgency", "diarrhea", "blood-stool",
+				"bloating", "nausea", "mucus", "night-stools", "bathroom-trips",
+			},
+		},
+		{
+			Key:         PackHeart,
+			Label:       "Heart",
+			Description: "Blood pressure, chest, rhythm, and heart symptoms",
+			AlwaysOn:    false,
+			TagKeys: []string{
+				"bp-high", "bp-ok",
+				"chest-pain", "chest-tightness", "palpitations", "heart-racing",
+				"shortness-of-breath", "dizziness", "ankle-swelling",
+			},
+		},
+		{
+			Key:         PackSleepApnea,
+			Label:       "Sleep apnea",
+			Description: "Sleep quality, headaches, tiredness, and apnea signs",
+			AlwaysOn:    false,
+			TagKeys: []string{
+				"morning-headache", "headache", "daytime-tired", "unrefreshing-sleep",
+				"snoring", "gasping", "dry-mouth", "brain-fog",
+				"restless-sleep", "naps", "insomnia",
 			},
 		},
 	}
