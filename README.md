@@ -7,27 +7,27 @@ Passwordless multi-condition health tracking (PWA) — WebAuthn passkeys, partne
 | **`main`** | This landing page only (stable pointer) |
 | **`dev`** | Active development, CI, and container builds |
 
-**Current pre-release:** [`v0.0.1-beta.16`](https://github.com/notfixingit3/l5s1/releases/tag/v0.0.1-beta.16) on `dev`
+**Current pre-release:** [`v0.0.1-beta.17`](https://github.com/notfixingit3/l5s1/releases/tag/v0.0.1-beta.17) on `dev`
 
 ## Get the app
 
 ### Docker (recommended)
 
 ```bash
-docker pull ghcr.io/notfixingit3/l5s1:v0.0.1-beta.16
+docker pull ghcr.io/notfixingit3/l5s1:v0.0.1-beta.17
 
 docker run --rm -p 8080:8080 \
   -e WEBAUTHN_RP_ID=localhost \
   -e WEBAUTHN_ORIGINS=http://localhost:8080 \
   -v l5s1-data:/data \
-  ghcr.io/notfixingit3/l5s1:v0.0.1-beta.16
+  ghcr.io/notfixingit3/l5s1:v0.0.1-beta.17
 ```
 
 Then open **http://localhost:8080** (must be `localhost` for passkeys).
 
 | Image tag | Notes |
 |-----------|--------|
-| `v0.0.1-beta.16` | This beta |
+| `v0.0.1-beta.17` | This beta |
 | `latest` | Newest git tag |
 | `dev` | Rolling build from development branch |
 
