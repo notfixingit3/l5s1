@@ -3,7 +3,7 @@
 > Active development lives on **`dev`**.  
 > **`main`** only hosts a pointer README until we cut a stable release.
 
-**Current version:** see [`VERSION`](./VERSION) → **v0.0.1-beta.16**
+**Current version:** see [`VERSION`](./VERSION) → **v0.0.1-beta.17**
 
 <p align="center">
   <img src="branding/logo-lockup-readme.png" alt="L5S1 Health Registry" width="360" />
@@ -20,7 +20,7 @@ Images are built by GitHub Actions on every push to `dev` and on every `v*` tag.
 
 | Tag | Meaning |
 |-----|---------|
-| `ghcr.io/notfixingit3/l5s1:v0.0.1-beta.16` | Immutable beta tag |
+| `ghcr.io/notfixingit3/l5s1:v0.0.1-beta.17` | Immutable beta tag |
 | `ghcr.io/notfixingit3/l5s1:latest` | Newest beta tag |
 | `ghcr.io/notfixingit3/l5s1:dev` | Alias of newest beta (same as `latest`) |
 | `ghcr.io/notfixingit3/l5s1:sha-<short>` | Exact commit (from that tag build) |
@@ -29,7 +29,7 @@ Images are built by GitHub Actions on every push to `dev` and on every `v*` tag.
 
 ```bash
 # Pull
-docker pull ghcr.io/notfixingit3/l5s1:v0.0.1-beta.16
+docker pull ghcr.io/notfixingit3/l5s1:v0.0.1-beta.17
 
 # Run (local WebAuthn — open http://localhost:8080 only)
 docker run --rm -p 8080:8080 \
@@ -37,7 +37,7 @@ docker run --rm -p 8080:8080 \
   -e WEBAUTHN_ORIGINS=http://localhost:8080 \
   -e SEED_ADMIN_USERNAME=admin \
   -v l5s1-data:/data \
-  ghcr.io/notfixingit3/l5s1:v0.0.1-beta.16
+  ghcr.io/notfixingit3/l5s1:v0.0.1-beta.17
 ```
 
 Private packages may require:
