@@ -157,6 +157,8 @@ func TestSummaryPackFilterHeart(t *testing.T) {
 	require.True(t, keys["all"])
 	require.True(t, keys["heart"])
 	require.True(t, keys["stenosis"])
+	// All condition packs offered even if not all are enabled for check-in
+	require.True(t, keys["uc"] || keys["diabetes"] || keys["sleep-apnea"])
 }
 
 func TestSummarySinceLastVisit(t *testing.T) {

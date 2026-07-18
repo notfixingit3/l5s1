@@ -291,10 +291,14 @@ func (h *HealthHandler) Summary(c *gin.Context) {
 		packFilterLabel = p.Label
 	}
 
-	filterOpts := packs.FilterPackOptions(enabled)
-	filterOut := make([]gin.H, 0, len(filterOpts)+1)
+	// Summary focus chips: all condition packs (not only currently enabled),
+	// so a visit can still filter to Heart/UC history even if that pack is off for check-in.
+	filterOut := make([]gin.H, 0, len(packs.Catalog())+1)
 	filterOut = append(filterOut, gin.H{"key": "all", "label": "All conditions"})
-	for _, p := range filterOpts {
+	for _, p := range packs.Catalog() {
+		if p.AlwaysOn {
+			continue
+		}
 		filterOut = append(filterOut, gin.H{"key": p.Key, "label": p.Label})
 	}
 

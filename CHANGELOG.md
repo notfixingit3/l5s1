@@ -4,6 +4,17 @@ All notable changes to L5S1 are documented here.
 
 Format inspired by [Keep a Changelog](https://keepachangelog.com/). Versions follow pre-release semver: `v0.0.1-beta.N`.
 
+## [0.0.1-beta.32] — 2026-07-18
+
+### Fixed
+- **Summary focus chips** list every condition pack (Stenosis, Heart, UC, …), not only packs enabled for check-in — so you can filter the visit timeline/tags/stats to that pack anytime
+
+### Images
+```bash
+docker pull ghcr.io/notfixingit3/l5s1:v0.0.1-beta.32
+docker pull ghcr.io/notfixingit3/l5s1:latest
+```
+
 ## [0.0.1-beta.31] — 2026-07-18
 
 ### Added

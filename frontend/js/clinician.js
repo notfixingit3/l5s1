@@ -189,6 +189,12 @@ async function refreshSummary() {
       `;
     }
 
+    const tagsHeading = document.getElementById("clin-tags-heading");
+    if (tagsHeading) {
+      tagsHeading.textContent = data.pack_filter_label
+        ? `Tags in period · ${data.pack_filter_label}`
+        : "Tags in period";
+    }
     if (tagsBox) {
       const groups = data.tag_groups || [];
       const counts = data.tag_counts || {};
