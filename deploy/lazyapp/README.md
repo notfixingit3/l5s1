@@ -1,38 +1,49 @@
-# L5S1 reverse-proxy / lab compose
+# L5S1 hosted stack (Traefik + GHCR)
 
-Generic stack for hosting the published GHCR image behind Traefik (HTTPS + optional CrowdSec).
+Serves the published image at **https://l5s1.com** (and `www`).
 
 | Item | Value |
 |------|--------|
-| Image | `ghcr.io/notfixingit3/l5s1:latest` or pin `v0.0.1-beta.N` via `IMAGE_TAG` |
-| Data | **Host bind** `./data` → `/data` (SQLite) — not a named Docker volume |
-| Network | external Docker network (default name `lazyapp_me`; change if yours differs) |
+| Image | `ghcr.io/notfixingit3/l5s1:latest` or pin `v0.0.1-beta.N` |
+| Data | Host bind `./data` → `/data` (SQLite) |
+| Network | external `lazyapp_me` (Traefik edge) |
+| TLS | Let's Encrypt via Traefik `certResolver=lets-encrypt` |
 
-Copy this directory to your host, fill `.env` from `.env.example`, then:
+## Setup
 
 ```bash
 mkdir -p data
-cp .env.example .env   # set PREVIEW_HOST, WebAuthn origin, CROWDSEC_BOUNCER_KEY
+cp .env.example .env
+# set CROWDSEC_BOUNCER_KEY; confirm APP_HOST / WebAuthn values
+
 docker compose pull
 docker compose up -d
+curl -fsS https://l5s1.com/api/healthz
 ```
 
-Refresh to the latest image:
+Refresh after a new beta tag:
 
 ```bash
 docker compose pull && docker compose up -d
 ```
 
-### WebAuthn
+## DNS
 
-Set `WEBAUTHN_RP_ID` and `WEBAUTHN_ORIGINS` to your **public HTTPS hostname** (not `localhost`).  
-Passkeys created on localhost will not work on the public host and vice versa.
+Point both names at the Traefik host:
 
-### Data
+| Name | Type | Value |
+|------|------|--------|
+| `l5s1.com` | A | edge server public IP |
+| `www.l5s1.com` | A or CNAME | same IP / `l5s1.com` |
 
-Keep SQLite on a host path next to compose (`./data`). Do not switch to a named Docker volume unless you intentionally want that.
+Until DNS resolves, Traefik cannot issue certificates.
 
-### Secrets
+## WebAuthn
 
-- Never commit `.env` (CrowdSec keys, etc.).
-- Do not document private SSH hosts, usernames, or internal filesystem layouts in this repo.
+- `WEBAUTHN_RP_ID=l5s1.com` (domain only)
+- `WEBAUTHN_ORIGINS` must include every origin users use (`https://l5s1.com` and `https://www.l5s1.com` if both are served)
+- Passkeys registered under an old host (e.g. a lab subdomain) **will not work** after the RP ID change — users re-register on the new domain
+
+## Secrets
+
+Never commit real `.env` (CrowdSec keys, etc.). Keep this template generic.
