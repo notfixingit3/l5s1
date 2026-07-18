@@ -36,6 +36,8 @@ func main() {
 	}
 
 	store := auth.NewStore()
+	// Durable login cookies across restarts / deploys (ceremonies stay in-memory)
+	store.AttachDB(db)
 
 	if os.Getenv("GIN_MODE") == "" {
 		gin.SetMode(gin.ReleaseMode)

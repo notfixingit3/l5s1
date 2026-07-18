@@ -4,6 +4,22 @@ All notable changes to L5S1 are documented here.
 
 Format inspired by [Keep a Changelog](https://keepachangelog.com/). Versions follow pre-release semver: `v0.0.1-beta.N`.
 
+## [0.0.1-beta.26] — 2026-07-18
+
+### Added
+- **Tag chips grouped by pack** on check-in and edit sheet (General / Stenosis / UC / …)
+- Empty-state hint when only General is enabled, with link to Profile → Tag packs
+- Edit sheet keeps tags already on an entry even if that pack is now off (**On this entry**)
+
+### Fixed
+- **Sessions survive restarts/deploys** — app sessions stored in SQLite (`app_sessions`); no more mass logout when the container recreates
+
+### Images
+```bash
+docker pull ghcr.io/notfixingit3/l5s1:v0.0.1-beta.26
+docker pull ghcr.io/notfixingit3/l5s1:latest
+```
+
 ## [0.0.1-beta.25] — 2026-07-17
 
 ### Added

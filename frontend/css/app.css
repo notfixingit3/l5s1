@@ -850,6 +850,56 @@ button.wide {
   margin: 0 0 0.25rem;
 }
 
+/* Pack-grouped check-in chips */
+#tag-picker,
+#edit-tag-picker {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0 0 0.35rem;
+}
+
+.tag-group {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.tag-group-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.tag-group-chips.tags {
+  margin: 0;
+}
+
+.tag-pack-hint {
+  margin: 0;
+  padding: 0.65rem 0.75rem;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  background: var(--surface-soft);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.tag-pack-hint .linkish {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  box-shadow: none;
+  color: var(--primary-ink);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .tags button {
   background: var(--surface-soft);
   color: var(--text-secondary);

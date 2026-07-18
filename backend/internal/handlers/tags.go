@@ -15,9 +15,15 @@ type TagsHandler struct {
 	DB *gorm.DB
 }
 
+type tagGroupOut struct {
+	Key   string       `json:"key"`
+	Label string       `json:"label"`
+	Tags  []models.Tag `json:"tags"`
+}
+
 // ListActive GET /api/tags — authenticated users only.
-// Returns active tags filtered by the caller's enabled tag packs.
-// Custom (non-system) tags and system tags not assigned to any pack always appear when active.
+// Returns active tags filtered by the caller's enabled tag packs, plus
+// groups[] for the check-in UI (chips grouped by pack).
 func (h *TagsHandler) ListActive(c *gin.Context) {
 	userID := c.GetString(middleware.ContextUserID)
 	var user models.User
@@ -27,7 +33,6 @@ func (h *TagsHandler) ListActive(c *gin.Context) {
 	}
 
 	enabled := packs.ParseEnabledCSV(user.EnabledPacks)
-	// Legacy empty column before default: treat as stenosis so existing users keep spine tags
 	if user.EnabledPacks == "" {
 		enabled = packs.ParseEnabledCSV(packs.DefaultEnabledPacks)
 	}
@@ -41,26 +46,96 @@ func (h *TagsHandler) ListActive(c *gin.Context) {
 	}
 
 	out := make([]models.Tag, 0, len(tags))
+	byKey := map[string]models.Tag{}
 	for _, t := range tags {
 		if !t.IsSystem {
-			// Custom admin tags: always available when active
 			out = append(out, t)
+			byKey[t.Key] = t
 			continue
 		}
 		if _, inPack := assigned[t.Key]; !inPack {
-			// System tag not in any pack (e.g. uc-flare, bp-*) — keep visible
 			out = append(out, t)
+			byKey[t.Key] = t
 			continue
 		}
 		if _, ok := effective[t.Key]; ok {
 			out = append(out, t)
+			byKey[t.Key] = t
+		}
+	}
+
+	groups := buildTagGroups(enabled, byKey)
+	onlyGeneral := len(enabled) == 0
+	// Count optional condition tags (non-general)
+	conditionTags := 0
+	for _, g := range groups {
+		if g.Key != packs.PackGeneral && g.Key != "other" {
+			conditionTags += len(g.Tags)
 		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"tags":          out,
-		"enabled_packs": enabled,
+		"tags":            out,
+		"groups":          groups,
+		"enabled_packs":   enabled,
+		"only_general":    onlyGeneral && conditionTags == 0,
+		"optional_packs":  len(packs.OptionalKeys()),
 	})
+}
+
+// buildTagGroups orders chips: always-on packs, then enabled optional packs, then Other.
+func buildTagGroups(enabled []string, byKey map[string]models.Tag) []tagGroupOut {
+	used := map[string]struct{}{}
+	enSet := map[string]struct{}{}
+	for _, k := range enabled {
+		enSet[k] = struct{}{}
+	}
+
+	var groups []tagGroupOut
+	for _, p := range packs.Catalog() {
+		if !p.AlwaysOn {
+			if _, on := enSet[p.Key]; !on {
+				continue
+			}
+		}
+		var list []models.Tag
+		for _, tk := range p.TagKeys {
+			t, ok := byKey[tk]
+			if !ok {
+				continue
+			}
+			list = append(list, t)
+			used[tk] = struct{}{}
+		}
+		if len(list) == 0 {
+			continue
+		}
+		groups = append(groups, tagGroupOut{Key: p.Key, Label: p.Label, Tags: list})
+	}
+
+	// Custom + any leftover system tags
+	var other []models.Tag
+	// Stable order: iterate catalog order then remaining by sort already in byKey values
+	// Collect unused keys from byKey
+	for k, t := range byKey {
+		if _, ok := used[k]; ok {
+			continue
+		}
+		other = append(other, t)
+	}
+	if len(other) > 0 {
+		// sort by SortOrder
+		for i := 0; i < len(other); i++ {
+			for j := i + 1; j < len(other); j++ {
+				if other[j].SortOrder < other[i].SortOrder ||
+					(other[j].SortOrder == other[i].SortOrder && other[j].Label < other[i].Label) {
+					other[i], other[j] = other[j], other[i]
+				}
+			}
+		}
+		groups = append(groups, tagGroupOut{Key: "other", Label: "More", Tags: other})
+	}
+	return groups
 }
 
 // ListPacks GET /api/packs — available packs + caller's enabled set.

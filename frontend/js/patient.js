@@ -33,6 +33,11 @@ export function initPatient() {
   });
 
   document.getElementById("tag-picker")?.addEventListener("click", (e) => {
+    if (e.target.closest("[data-open-packs]")) {
+      e.preventDefault();
+      document.getElementById("user-chip")?.click();
+      return;
+    }
     const btn = e.target.closest("button[data-tag]");
     if (!btn) return;
     const tag = btn.dataset.tag;
@@ -56,24 +61,77 @@ export async function loadTags() {
   if (!picker) return;
   selectedTags.clear();
   try {
-    const catalog = await ensureTagCatalog();
-    const tags = [...catalog.values()];
+    await ensureTagCatalog();
     const data = await api("/api/tags");
-    const ordered = data.tags || tags;
-    if (!ordered.length) {
-      picker.innerHTML = `<span class="muted">No tags configured. Ask an admin to add some.</span>`;
-      return;
-    }
-    picker.innerHTML = ordered
-      .map((t) => {
-        const key = t.key;
-        const label = t.label || key;
-        return `<button type="button" data-tag="${escapeAttr(key)}">${escapeHtml(label)}</button>`;
-      })
-      .join("");
+    picker.innerHTML = renderTagPickerHTML(data, { selected: selectedTags });
   } catch {
     picker.innerHTML = `<span class="muted">Could not load tags</span>`;
   }
+}
+
+/**
+ * Render pack-grouped tag chips (+ empty-state when only General is on).
+ * @param {{ tags?: any[], groups?: any[], only_general?: boolean }} data
+ * @param {{ selected?: Set<string>, extraKeys?: string[] }} opts
+ */
+function renderTagPickerHTML(data, opts = {}) {
+  const selected = opts.selected || new Set();
+  const groups = Array.isArray(data.groups) ? data.groups : null;
+  const flat = data.tags || [];
+  const extraKeys = opts.extraKeys || [];
+
+  let html = "";
+  if (data.only_general) {
+    html += `<p class="tag-pack-hint">Only the general tags (left/right) are on.
+      <button type="button" class="linkish" data-open-packs>Enable condition packs in Profile</button>
+      to show stenosis, UC, heart, sleep, and more.</p>`;
+  }
+
+  if (groups && groups.length) {
+    html += groups
+      .map((g) => {
+        const chips = (g.tags || [])
+          .map((t) => tagChipButton(t.key, t.label || t.key, selected.has(t.key)))
+          .join("");
+        if (!chips) return "";
+        return `<div class="tag-group" data-pack="${escapeAttr(g.key)}">
+          <div class="tag-group-label">${escapeHtml(g.label || g.key)}</div>
+          <div class="tag-group-chips tags">${chips}</div>
+        </div>`;
+      })
+      .join("");
+  } else if (flat.length) {
+    html += `<div class="tag-group-chips tags">${flat
+      .map((t) => tagChipButton(t.key, t.label || t.key, selected.has(t.key)))
+      .join("")}</div>`;
+  }
+
+  // Keys already on an entry but not in enabled packs (edit sheet)
+  const known = new Set();
+  if (groups) {
+    for (const g of groups) for (const t of g.tags || []) known.add(t.key);
+  } else {
+    for (const t of flat) known.add(t.key);
+  }
+  const orphans = extraKeys.filter((k) => k && !known.has(k));
+  if (orphans.length) {
+    html += `<div class="tag-group" data-pack="on-entry">
+      <div class="tag-group-label">On this entry</div>
+      <div class="tag-group-chips tags">${orphans
+        .map((k) => tagChipButton(k, k, selected.has(k)))
+        .join("")}</div>
+    </div>`;
+  }
+
+  if (!html || (!flat.length && !(groups && groups.length) && !orphans.length)) {
+    return `<span class="muted">No tags configured. Ask an admin to add some, or enable packs in Profile.</span>`;
+  }
+  return html;
+}
+
+function tagChipButton(key, label, isSelected) {
+  const sel = isSelected ? ' class="selected"' : "";
+  return `<button type="button"${sel} data-tag="${escapeAttr(key)}">${escapeHtml(label)}</button>`;
 }
 
 async function saveLog() {
@@ -426,14 +484,13 @@ async function fillEditTagPicker() {
   const picker = document.getElementById("edit-tag-picker");
   if (!picker) return;
   try {
+    await ensureTagCatalog();
     const data = await api("/api/tags");
-    const ordered = data.tags || [];
-    picker.innerHTML = ordered
-      .map((t) => {
-        const sel = editSelectedTags.has(t.key) ? ' class="selected"' : "";
-        return `<button type="button"${sel} data-tag="${escapeAttr(t.key)}">${escapeHtml(t.label || t.key)}</button>`;
-      })
-      .join("");
+    const extra = [...editSelectedTags];
+    picker.innerHTML = renderTagPickerHTML(data, {
+      selected: editSelectedTags,
+      extraKeys: extra,
+    });
   } catch {
     picker.innerHTML = `<span class="muted">Could not load tags</span>`;
   }

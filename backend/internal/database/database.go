@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/glebarez/sqlite"
+	"github.com/l5s1/health-registry/internal/auth"
 	"github.com/l5s1/health-registry/internal/models"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -68,6 +69,7 @@ func Migrate(db *gorm.DB) error {
 		&models.DeviceLinkCode{},
 		&models.Tag{},
 		&models.Notification{},
+		&auth.SessionRow{},
 	)
 	if err != nil {
 		return fmt.Errorf("auto-migrate: %w", err)
