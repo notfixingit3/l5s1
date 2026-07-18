@@ -392,20 +392,27 @@ document.getElementById("btn-logout")?.addEventListener("click", async () => {
 });
 
 function paintVersion() {
-  const label = APP_COMMIT && APP_COMMIT !== "dev" ? `v${APP_VERSION}+${APP_COMMIT}` : `v${APP_VERSION}`;
+  // Short pill for layout (long "+commit" was wrapping the header subtitle).
+  // Full identity stays on title hover / long-press tooltip.
+  const short = `v${APP_VERSION}`;
+  const full =
+    APP_COMMIT && APP_COMMIT !== "dev" ? `v${APP_VERSION}+${APP_COMMIT}` : short;
   document.querySelectorAll("#app-version, #app-version-authed").forEach((el) => {
-    el.textContent = label;
-    el.title = `L5S1 ${label}`;
+    el.textContent = short;
+    el.title = `L5S1 ${full}`;
   });
   // Prefer server-reported version when available (matches container image)
   fetch("/api/version", { credentials: "include" })
     .then((r) => (r.ok ? r.json() : null))
     .then((data) => {
       if (!data?.display && !data?.version) return;
-      const serverLabel = data.display || `v${data.version}`;
+      const product = data.version ? `v${data.version}` : short;
+      const detail = data.display || product;
+      const tip =
+        `L5S1 ${detail}` + (data.build_time ? ` · built ${data.build_time}` : "");
       document.querySelectorAll("#app-version, #app-version-authed").forEach((el) => {
-        el.textContent = serverLabel;
-        el.title = `L5S1 ${serverLabel}` + (data.build_time ? ` · built ${data.build_time}` : "");
+        el.textContent = product;
+        el.title = tip;
       });
     })
     .catch(() => {});
