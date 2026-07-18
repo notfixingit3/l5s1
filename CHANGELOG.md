@@ -4,54 +4,57 @@ All notable changes to L5S1 are documented here.
 
 Format inspired by [Keep a Changelog](https://keepachangelog.com/). Versions follow pre-release semver: `v0.0.1-beta.N`.
 
+## [0.0.1-beta.18] — 2026-07-18
+
+### Added
+- **Swipe recent entries** — swipe right to edit (pain/notes/tags sheet), swipe left to delete (with confirm)
+- `PATCH` / `DELETE` `/api/logs/:id` for the patient’s own check-ins
+- Production domain **[l5s1.com](https://l5s1.com)** in deploy template, READMEs, and GitHub About/homepage
+- Partner access verification tests (view patient logs only after grant)
+
+### Changed
+- README hero uses large app-icon mark (Imagine-refined); no lockup wordmark text
+- Hosted stack WebAuthn / Traefik hosts: `l5s1.com` + `www.l5s1.com`
+
+### Fixed
+- Header version pill short form so “Daily check-in” stays one line (from beta.17 follow-ups)
+
+### Security
+- `go test ./...`, `go vet`, **govulncheck** (0 reachable), **gosec** (0 issues)
+
+### Images
+```bash
+docker pull ghcr.io/notfixingit3/l5s1:v0.0.1-beta.18
+docker pull ghcr.io/notfixingit3/l5s1:latest
+```
+
 ## [0.0.1-beta.17] — 2026-07-18
 
 ### Fixed
-- **Header version pill** shows product version only (`v0.0.1-beta.N`); full `+commit` stays on tooltip so “Daily check-in” no longer wraps to multiple lines
-- Brand subtitle nowrap + ellipsis; hide header pill on very narrow screens (footer still shows version)
+- Header version pill shows product version only; full `+commit` on tooltip
 
 ### Images
 ```bash
 docker pull ghcr.io/notfixingit3/l5s1:v0.0.1-beta.17
-docker pull ghcr.io/notfixingit3/l5s1:latest
 ```
 
 ## [0.0.1-beta.16] — 2026-07-17
 
 ### Added
-- **Admin user email edit** — correct or clear a user’s email (unique check)
-- **Admin passkey management** — view devices (name, added, use count); revoke one passkey or wipe all
-- **Admin tags: system vs custom** — default catalog tags marked **Default**; enable/disable only (never deleted)
-- **Custom tag delete with replacement** — if a custom tag is on logs, admin must pick a replacement key before delete
-- **AGENTS.md** — local-first workflow, beta-tag CI, WebAuthn and secrets policy
-
-### Changed
-- GitHub Actions: **CI + multi-arch container only on `v*-beta.*` tags** (no build on every `dev` push)
-- Container builds: **parallel native amd64 + arm64** (no QEMU), tests outside Docker image build
-- Lab/deploy docs scrubbed of private host paths; generic `deploy/lazyapp` template
-
-### Fixed
-- Clearer Default/Custom tag badges; delete control hidden for system tags
+- Admin email edit; view/revoke passkeys
+- System vs custom tags; custom delete with replacement
+- AGENTS.md; tag-only CI multi-arch builds
 
 ### Images
 ```bash
 docker pull ghcr.io/notfixingit3/l5s1:v0.0.1-beta.16
-docker pull ghcr.io/notfixingit3/l5s1:latest
 ```
 
 ## [0.0.1-beta.15] — 2026-07-17
 
 ### Added
-- **Device link codes** — signed-in users mint a one-time 8-digit code (`xxxx-xxxx`) so another phone/laptop can register a passkey without already being logged in
-- Auth **Add device** tab + Profile **Generate device code** UI
-- Lab/hosted compose template `deploy/lazyapp` (GHCR, host bind `./data`, Traefik labels)
-- Invite codes displayed as `xxxx-xxxx` (same format as device codes)
-
-### Fixed
-- Version display no longer double-stamps the git SHA
-- README lockup: transparent tight crop; favicon transparent corners
-- CI: pin Go **1.25.12** for govulncheck
-- Repository rename to `notfixingit3/l5s1`
+- Device link codes for multi-device passkeys
+- Lab/hosted compose template
 
 ### Images
 ```bash
@@ -61,14 +64,7 @@ docker pull ghcr.io/notfixingit3/l5s1:v0.0.1-beta.15
 ## [0.0.1-beta.14] — 2026-07-17
 
 ### Added
-- Passwordless WebAuthn multi-device passkeys (Gin + go-webauthn)
-- Patient check-in, partner mode, clinician summary, admin workspace
-- Docker multi-arch image publish to GHCR on beta tags
-
-### Images
-```bash
-docker pull ghcr.io/notfixingit3/l5s1:v0.0.1-beta.14
-```
+- Initial beta: WebAuthn PWA, patient/partner/clinician/admin, GHCR images
 
 ## Unreleased
 
