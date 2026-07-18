@@ -1,29 +1,26 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 140" role="img" aria-label="L5S1 Health Registry">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 176" role="img" aria-label="L5S1 Health Registry">
   <defs>
-    <linearGradient id="disc" x1="0.2" y1="0" x2="0.8" y2="1">
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#5eead4"/>
       <stop offset="45%" stop-color="#2dd4bf"/>
-      <stop offset="100%" stop-color="#0f766e"/>
+      <stop offset="100%" stop-color="#0d9488"/>
     </linearGradient>
-    <linearGradient id="mid" x1="0.15" y1="0" x2="0.85" y2="1">
-      <stop offset="0%" stop-color="#99f6e4"/>
-      <stop offset="40%" stop-color="#5eead4"/>
+    <linearGradient id="disc" x1="0.15" y1="0" x2="0.85" y2="1">
+      <stop offset="0%" stop-color="#ecfeff"/>
+      <stop offset="45%" stop-color="#99f6e4"/>
       <stop offset="100%" stop-color="#14b8a6"/>
     </linearGradient>
-    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%">
-      <feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="#0f766e" flood-opacity="0.22"/>
+    <filter id="soft" x="-25%" y="-25%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#0f766e" flood-opacity="0.2"/>
     </filter>
   </defs>
-  <!-- Mark -->
-  <g transform="translate(8, 10)">
-    <rect x="36" y="18" width="48" height="18" rx="9" fill="url(#disc)" filter="url(#soft)"/>
-    <ellipse cx="60" cy="62" rx="38" ry="16" fill="url(#mid)" filter="url(#soft)"/>
-    <rect x="36" y="84" width="48" height="18" rx="9" fill="url(#disc)" filter="url(#soft)"/>
-    <ellipse cx="48" cy="24" rx="10" ry="4" fill="#fff" opacity="0.35"/>
-    <ellipse cx="48" cy="56" rx="14" ry="5" fill="#fff" opacity="0.4"/>
-    <ellipse cx="48" cy="90" rx="10" ry="4" fill="#fff" opacity="0.3"/>
-  </g>
-  <!-- Wordmark -->
-  <text x="150" y="72" font-family="DM Sans, system-ui, -apple-system, Segoe UI, sans-serif" font-size="52" font-weight="700" fill="#134e4a" letter-spacing="-1.5">L5S1</text>
-  <text x="152" y="104" font-family="DM Sans, system-ui, -apple-system, Segoe UI, sans-serif" font-size="20" font-weight="500" fill="#5b7a84" letter-spacing="0.5">Health Registry</text>
+  <rect x="4" y="12" width="152" height="152" rx="36" fill="url(#tile)" filter="url(#soft)"/>
+  <rect x="50" y="42" width="60" height="24" rx="12" fill="url(#disc)"/>
+  <ellipse cx="62" cy="50" rx="14" ry="5.5" fill="#fff" opacity="0.4"/>
+  <ellipse cx="80" cy="88" rx="48" ry="20" fill="url(#disc)"/>
+  <ellipse cx="62" cy="80" rx="18" ry="7" fill="#fff" opacity="0.45"/>
+  <rect x="50" y="110" width="60" height="24" rx="12" fill="url(#disc)"/>
+  <ellipse cx="62" cy="118" rx="14" ry="5.5" fill="#fff" opacity="0.35"/>
+  <text x="184" y="92" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="68" font-weight="700" fill="#0d9488" letter-spacing="-2">L5S1</text>
+  <text x="188" y="128" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="26" font-weight="500" fill="#64748b" letter-spacing="0.3">Health Registry</text>
 </svg>
