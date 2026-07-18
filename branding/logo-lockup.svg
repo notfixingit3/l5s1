@@ -1,26 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 176" role="img" aria-label="L5S1 Health Registry">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 200" role="img" aria-label="L5S1 Health Registry">
   <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0d9488"/>
+      <stop offset="100%" stop-color="#0f766e"/>
+    </linearGradient>
     <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#5eead4"/>
-      <stop offset="45%" stop-color="#2dd4bf"/>
       <stop offset="100%" stop-color="#0d9488"/>
     </linearGradient>
-    <linearGradient id="disc" x1="0.15" y1="0" x2="0.85" y2="1">
-      <stop offset="0%" stop-color="#ecfeff"/>
-      <stop offset="45%" stop-color="#99f6e4"/>
-      <stop offset="100%" stop-color="#14b8a6"/>
-    </linearGradient>
-    <filter id="soft" x="-25%" y="-25%" width="150%" height="150%">
-      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#0f766e" flood-opacity="0.2"/>
-    </filter>
   </defs>
-  <rect x="4" y="12" width="152" height="152" rx="36" fill="url(#tile)" filter="url(#soft)"/>
-  <rect x="50" y="42" width="60" height="24" rx="12" fill="url(#disc)"/>
-  <ellipse cx="62" cy="50" rx="14" ry="5.5" fill="#fff" opacity="0.4"/>
-  <ellipse cx="80" cy="88" rx="48" ry="20" fill="url(#disc)"/>
-  <ellipse cx="62" cy="80" rx="18" ry="7" fill="#fff" opacity="0.45"/>
-  <rect x="50" y="110" width="60" height="24" rx="12" fill="url(#disc)"/>
-  <ellipse cx="62" cy="118" rx="14" ry="5.5" fill="#fff" opacity="0.35"/>
-  <text x="184" y="92" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="68" font-weight="700" fill="#0d9488" letter-spacing="-2">L5S1</text>
-  <text x="188" y="128" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="26" font-weight="500" fill="#64748b" letter-spacing="0.3">Health Registry</text>
+  <rect width="560" height="200" rx="36" fill="url(#bg)"/>
+  <rect x="28" y="36" width="128" height="128" rx="30" fill="url(#tile)"/>
+  <rect x="62" y="58" width="60" height="22" rx="11" fill="#99f6e4" opacity="0.95"/>
+  <ellipse cx="92" cy="100" rx="40" ry="16" fill="#ccfbf1"/>
+  <rect x="62" y="120" width="60" height="22" rx="11" fill="#99f6e4" opacity="0.95"/>
+  <!-- Wordmark: title baseline y=88, subtitle starts clearly below at y=128 -->
+  <text x="180" y="88" font-family="system-ui, -apple-system, sans-serif" font-size="56" font-weight="700" fill="#ffffff" letter-spacing="-1.5">L5S1</text>
+  <text x="182" y="128" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="500" fill="#ecfeff">Health Registry</text>
+  <text x="182" y="158" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="500" fill="#a7f3d0">l5s1.com</text>
 </svg>
