@@ -733,6 +733,11 @@ button.wide {
   gap: 0.65rem;
 }
 
+.swipe-hint {
+  font-size: 0.78rem;
+  margin: -0.25rem 0 0.55rem;
+}
+
 .entry-card {
   list-style: none;
   padding: 0.9rem 1rem;
@@ -748,6 +753,121 @@ button.wide {
 .entry-card.obs {
   border-left-color: var(--lavender);
   background: var(--lavender-soft);
+}
+
+/* Swipeable recent entries: right = edit, left = delete */
+.entry-swipe {
+  list-style: none;
+  position: relative;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  touch-action: pan-y;
+  background: var(--surface-soft);
+}
+
+.entry-swipe-rail {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 96px;
+  display: grid;
+  place-items: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #fff;
+  z-index: 0;
+}
+
+.entry-swipe-rail--edit {
+  left: 0;
+  right: auto;
+  background: linear-gradient(90deg, var(--primary) 0%, #0e7490 100%);
+}
+
+.entry-swipe-rail--delete {
+  left: auto;
+  right: 0;
+  width: 96px;
+  background: linear-gradient(270deg, #dc2626 0%, #f87171 100%);
+}
+
+.entry-swipe-front {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  will-change: transform;
+  user-select: none;
+  -webkit-user-select: none;
+  background: var(--surface-soft);
+  box-shadow: 0 0 0 1px var(--border);
+}
+
+.entry-swipe.is-dragging .entry-swipe-front {
+  cursor: grabbing;
+}
+
+.entry-swipe-tip {
+  display: none;
+  margin: 0.35rem 0 0;
+  font-size: 0.68rem;
+}
+
+.entry-swipe-removing {
+  opacity: 0;
+  transform: scale(0.96);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+/* Edit sheet */
+.entry-edit-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  align-items: end;
+  justify-items: center;
+}
+
+.entry-edit-sheet[hidden] {
+  display: none !important;
+}
+
+.entry-edit-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 32, 0.45);
+  backdrop-filter: blur(4px);
+}
+
+.entry-edit-panel {
+  position: relative;
+  z-index: 1;
+  width: min(440px, 100%);
+  max-height: min(88vh, 640px);
+  overflow: auto;
+  padding: 1.15rem 1.15rem calc(1.15rem + var(--safe-bottom));
+  background: var(--surface);
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 -12px 40px rgba(26, 43, 51, 0.18);
+}
+
+.entry-edit-panel h3 {
+  margin: 0 0 0.25rem;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+}
+
+.entry-edit-actions {
+  display: flex;
+  gap: 0.55rem;
+  justify-content: flex-end;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+.entry-edit-actions button {
+  min-width: 6rem;
 }
 
 .entry-top {

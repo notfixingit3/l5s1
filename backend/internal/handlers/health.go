@@ -48,6 +48,92 @@ func (h *HealthHandler) CreateLog(c *gin.Context) {
 	c.JSON(http.StatusCreated, log)
 }
 
+// UpdateLog patches a patient's own check-in (not partner observations).
+// PATCH /api/logs/:id
+func (h *HealthHandler) UpdateLog(c *gin.Context) {
+	userID := c.GetString(middleware.ContextUserID)
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil || id == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid log id"})
+		return
+	}
+	var log models.HealthLog
+	if err := h.DB.First(&log, "id = ?", id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "log not found"})
+		return
+	}
+	if log.UserID != userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "not your log"})
+		return
+	}
+	if log.IsObservation {
+		c.JSON(http.StatusForbidden, gin.H{"error": "cannot edit partner observations"})
+		return
+	}
+	var req struct {
+		PainLevel  *int    `json:"pain_level"`
+		ShortNotes *string `json:"short_notes"`
+		Tags       *string `json:"tags"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid body"})
+		return
+	}
+	updates := map[string]interface{}{}
+	if req.PainLevel != nil {
+		if *req.PainLevel < 1 || *req.PainLevel > 10 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "pain_level must be 1–10"})
+			return
+		}
+		updates["pain_level"] = *req.PainLevel
+	}
+	if req.ShortNotes != nil {
+		updates["short_notes"] = strings.TrimSpace(*req.ShortNotes)
+	}
+	if req.Tags != nil {
+		updates["tags"] = strings.TrimSpace(*req.Tags)
+	}
+	if len(updates) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "no updates"})
+		return
+	}
+	if err := h.DB.Model(&log).Updates(updates).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "update failed"})
+		return
+	}
+	h.DB.First(&log, id)
+	c.JSON(http.StatusOK, log)
+}
+
+// DeleteLog removes a patient's own check-in (not partner observations).
+// DELETE /api/logs/:id
+func (h *HealthHandler) DeleteLog(c *gin.Context) {
+	userID := c.GetString(middleware.ContextUserID)
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil || id == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid log id"})
+		return
+	}
+	var log models.HealthLog
+	if err := h.DB.First(&log, "id = ?", id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "log not found"})
+		return
+	}
+	if log.UserID != userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "not your log"})
+		return
+	}
+	if log.IsObservation {
+		c.JSON(http.StatusForbidden, gin.H{"error": "cannot delete partner observations"})
+		return
+	}
+	if err := h.DB.Delete(&log).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "delete failed"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "deleted", "id": id})
+}
+
 // ListLogs returns the caller's own logs (patient view).
 // GET /api/logs
 func (h *HealthHandler) ListLogs(c *gin.Context) {

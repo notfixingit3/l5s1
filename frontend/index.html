@@ -141,8 +141,37 @@
         <div class="section-title">
           <h3>Recent entries</h3>
         </div>
+        <p class="muted swipe-hint">Swipe right to edit · swipe left to delete</p>
         <ul id="log-list" class="entry-list"></ul>
       </section>
+
+      <!-- Edit entry sheet (opened via swipe-right) -->
+      <div id="entry-edit-sheet" class="entry-edit-sheet" hidden>
+        <div class="entry-edit-backdrop" data-edit-dismiss></div>
+        <div class="entry-edit-panel" role="dialog" aria-modal="true" aria-labelledby="entry-edit-title">
+          <h3 id="entry-edit-title">Edit entry</h3>
+          <p class="muted" id="entry-edit-when"></p>
+          <div class="pain-block">
+            <div class="pain-header">
+              <label for="edit-pain-slider">Pain level</label>
+              <span id="edit-pain-value" class="pain-readout" data-level="mid">5</span>
+            </div>
+            <input id="edit-pain-slider" type="range" min="1" max="10" value="5" />
+            <div class="pain-scale"><span>Mild</span><span>Moderate</span><span>Severe</span></div>
+          </div>
+          <label>
+            Notes
+            <textarea id="edit-log-notes" rows="2" placeholder="Optional notes…"></textarea>
+          </label>
+          <span class="field-label">Tags</span>
+          <div class="tags" id="edit-tag-picker" role="group" aria-label="Tags"></div>
+          <p id="entry-edit-status" class="status" role="status"></p>
+          <div class="entry-edit-actions">
+            <button type="button" class="secondary" data-edit-dismiss>Cancel</button>
+            <button type="button" class="primary" id="btn-entry-edit-save">Save changes</button>
+          </div>
+        </div>
+      </div>
 
       <!-- Partner dashboard -->
       <section id="view-partner" class="card" hidden>

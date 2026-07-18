@@ -82,6 +82,8 @@ func New(d Deps) *gin.Engine {
 			logs.POST("", healthH.CreateLog)
 			logs.GET("", healthH.ListLogs)
 			logs.GET("/summary", healthH.Summary)
+			logs.PATCH("/:id", healthH.UpdateLog)
+			logs.DELETE("/:id", healthH.DeleteLog)
 		}
 
 		// Active tags for log UI (must be signed in)
