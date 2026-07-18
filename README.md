@@ -3,7 +3,7 @@
 > **Live app:** [https://l5s1.com](https://l5s1.com)  
 > Active development lives on **`dev`**. **`main`** is a short landing README.
 
-**Current version:** see [`VERSION`](./VERSION) → **v0.0.1-beta.29**
+**Current version:** see [`VERSION`](./VERSION) → **v0.0.1-beta.30**
 
 <p align="center">
   <img src="branding/logo-lockup-readme.png" alt="L5S1" width="220" />
@@ -37,7 +37,7 @@ Images build on **`v*-beta.*` tags only** (not every `dev` push).
 
 | Tag | Meaning |
 |-----|---------|
-| `ghcr.io/notfixingit3/l5s1:v0.0.1-beta.29` | Immutable beta tag |
+| `ghcr.io/notfixingit3/l5s1:v0.0.1-beta.30` | Immutable beta tag |
 | `ghcr.io/notfixingit3/l5s1:latest` | Newest beta tag |
 | `ghcr.io/notfixingit3/l5s1:dev` | Alias of newest beta |
 | `ghcr.io/notfixingit3/l5s1:sha-<short>` | Exact commit from that tag build |
@@ -45,14 +45,14 @@ Images build on **`v*-beta.*` tags only** (not every `dev` push).
 ### Run a tagged beta locally
 
 ```bash
-docker pull ghcr.io/notfixingit3/l5s1:v0.0.1-beta.29
+docker pull ghcr.io/notfixingit3/l5s1:v0.0.1-beta.30
 
 docker run --rm -p 8080:8080 \
   -e WEBAUTHN_RP_ID=localhost \
   -e WEBAUTHN_ORIGINS=http://localhost:8080 \
   -e SEED_ADMIN_USERNAME=admin \
   -v l5s1-data:/data \
-  ghcr.io/notfixingit3/l5s1:v0.0.1-beta.29
+  ghcr.io/notfixingit3/l5s1:v0.0.1-beta.30
 ```
 
 Open **http://localhost:8080** only (not `127.0.0.1`) so WebAuthn works.

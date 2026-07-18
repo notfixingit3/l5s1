@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"encoding/csv"
+	"fmt"
 	"net/http"
 	"sort"
 	"strconv"
@@ -141,6 +143,73 @@ func (h *HealthHandler) DeleteLog(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"status": "deleted", "id": id})
+}
+
+// ExportLogs downloads the caller's logs as JSON or CSV.
+// GET /api/logs/export?format=json|csv
+func (h *HealthHandler) ExportLogs(c *gin.Context) {
+	userID := c.GetString(middleware.ContextUserID)
+	format := strings.ToLower(strings.TrimSpace(c.DefaultQuery("format", "json")))
+	if format != "json" && format != "csv" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "format must be json or csv"})
+		return
+	}
+
+	var user models.User
+	_ = h.DB.Select("id", "username", "display_name", "email").First(&user, "id = ?", userID)
+
+	var logs []models.HealthLog
+	if err := h.DB.Where("user_id = ?", userID).Order("created_at asc").Find(&logs).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "export failed"})
+		return
+	}
+
+	stamp := time.Now().UTC().Format("20060102")
+	if format == "csv" {
+		c.Header("Content-Type", "text/csv; charset=utf-8")
+		c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="l5s1-logs-%s.csv"`, stamp))
+		w := csv.NewWriter(c.Writer)
+		_ = w.Write([]string{"id", "created_at", "pain_level", "short_notes", "tags", "is_observation", "author_id"})
+		for _, l := range logs {
+			_ = w.Write([]string{
+				strconv.FormatUint(l.ID, 10),
+				l.CreatedAt.UTC().Format(time.RFC3339),
+				strconv.Itoa(l.PainLevel),
+				l.ShortNotes,
+				l.Tags,
+				strconv.FormatBool(l.IsObservation),
+				l.AuthorID,
+			})
+		}
+		w.Flush()
+		return
+	}
+
+	type row struct {
+		ID            uint64    `json:"id"`
+		CreatedAt     time.Time `json:"created_at"`
+		PainLevel     int       `json:"pain_level"`
+		ShortNotes    string    `json:"short_notes"`
+		Tags          string    `json:"tags"`
+		IsObservation bool      `json:"is_observation"`
+		AuthorID      string    `json:"author_id,omitempty"`
+	}
+	out := make([]row, 0, len(logs))
+	for _, l := range logs {
+		out = append(out, row{
+			ID: l.ID, CreatedAt: l.CreatedAt, PainLevel: l.PainLevel,
+			ShortNotes: l.ShortNotes, Tags: l.Tags, IsObservation: l.IsObservation, AuthorID: l.AuthorID,
+		})
+	}
+	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="l5s1-logs-%s.json"`, stamp))
+	c.JSON(http.StatusOK, gin.H{
+		"exported_at": time.Now().UTC(),
+		"user": gin.H{
+			"id": user.ID, "username": user.Username, "display_name": user.DisplayName, "email": user.Email,
+		},
+		"count": len(out),
+		"logs":  out,
+	})
 }
 
 // ListLogs returns the caller's own logs (patient view).

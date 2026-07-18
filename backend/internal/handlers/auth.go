@@ -100,6 +100,12 @@ func findUserByLogin(db *gorm.DB, login string) (models.User, error) {
 // RegisterBegin starts passkey registration (new user or additional device).
 // POST /api/auth/register/begin
 func (h *AuthHandler) RegisterBegin(c *gin.Context) {
+	if h.CodeLimiter != nil {
+		if !h.CodeLimiter.Allow("register:ip:"+c.ClientIP(), false) {
+			c.JSON(http.StatusTooManyRequests, gin.H{"error": "too many registration attempts — try again in a few minutes"})
+			return
+		}
+	}
 	var req registerBeginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
@@ -372,6 +378,15 @@ func (h *AuthHandler) RegisterFinish(c *gin.Context) {
 // LoginBegin starts assertion for an existing user.
 // POST /api/auth/login/begin
 func (h *AuthHandler) LoginBegin(c *gin.Context) {
+	// Brute-force / enumeration budget (shared limiter with invites)
+	if h.CodeLimiter != nil {
+		ipKey := "login:ip:" + c.ClientIP()
+		if !h.CodeLimiter.Allow(ipKey, false) {
+			c.JSON(http.StatusTooManyRequests, gin.H{"error": "too many sign-in attempts — try again in a few minutes"})
+			return
+		}
+	}
+
 	var req loginBeginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "username or email required"})
@@ -388,8 +403,19 @@ func (h *AuthHandler) LoginBegin(c *gin.Context) {
 
 	user, err := findUserByLogin(h.DB, login)
 	if err != nil {
+		if h.CodeLimiter != nil {
+			h.CodeLimiter.Allow("login:ip:"+c.ClientIP(), true)
+			h.CodeLimiter.Allow("login:user:"+strings.ToLower(login), true)
+		}
 		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 		return
+	}
+	if h.CodeLimiter != nil {
+		userKey := "login:user:" + strings.ToLower(user.Username)
+		if !h.CodeLimiter.Allow(userKey, false) {
+			c.JSON(http.StatusTooManyRequests, gin.H{"error": "too many sign-in attempts — try again in a few minutes"})
+			return
+		}
 	}
 	if !user.IsActive {
 		c.JSON(http.StatusForbidden, gin.H{"error": "account deactivated"})
@@ -769,9 +795,11 @@ func (h *AuthHandler) clearCeremonyCookie(c *gin.Context) {
 	c.SetCookie(ceremonyCookie, "", -1, "/", "", h.SecureCookie, true)
 }
 
+const sessionCookieMaxAge = 30 * 24 * 60 * 60 // match Store sessionTTL (30 days)
+
 func (h *AuthHandler) setSessionCookie(c *gin.Context, token string) {
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie(h.CookieName, token, 86400, "/", "", h.SecureCookie, true)
+	c.SetCookie(h.CookieName, token, sessionCookieMaxAge, "/", "", h.SecureCookie, true)
 }
 
 // consumeInvitePreview validates an invite without incrementing use count.

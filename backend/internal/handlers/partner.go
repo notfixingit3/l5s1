@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/l5s1/health-registry/internal/middleware"
 	"github.com/l5s1/health-registry/internal/models"
+	"github.com/l5s1/health-registry/internal/packs"
 	"gorm.io/gorm"
 )
 
@@ -131,6 +132,59 @@ func (h *PartnerHandler) PatientLogs(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"logs": logs})
 }
 
+// PatientTags returns the patient's effective check-in tags (for partner observation chips).
+// GET /api/partner/patients/:id/tags
+func (h *PartnerHandler) PatientTags(c *gin.Context) {
+	partnerID := c.GetString(middleware.ContextUserID)
+	patientID := c.Param("id")
+	if !h.authorized(partnerID, patientID) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "no access to this patient"})
+		return
+	}
+	var patient models.User
+	if err := h.DB.Select("id", "enabled_packs").First(&patient, "id = ?", patientID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "patient not found"})
+		return
+	}
+	enabled := packs.ParseEnabledCSV(patient.EnabledPacks)
+	if patient.EnabledPacks == "" {
+		enabled = packs.ParseEnabledCSV(packs.DefaultEnabledPacks)
+	}
+	effective := packs.EffectiveKeys(enabled)
+	assigned := packs.AssignedSystemKeys()
+
+	var tags []models.Tag
+	if err := h.DB.Where("is_active = ?", true).Order("sort_order asc, label asc").Find(&tags).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "list tags failed"})
+		return
+	}
+	out := make([]models.Tag, 0, len(tags))
+	byKey := map[string]models.Tag{}
+	for _, t := range tags {
+		if !t.IsSystem {
+			out = append(out, t)
+			byKey[t.Key] = t
+			continue
+		}
+		if _, inPack := assigned[t.Key]; !inPack {
+			out = append(out, t)
+			byKey[t.Key] = t
+			continue
+		}
+		if _, ok := effective[t.Key]; ok {
+			out = append(out, t)
+			byKey[t.Key] = t
+		}
+	}
+	// Groups for UI (same shape as patient check-in)
+	groups := buildTagGroups(enabled, byKey)
+	c.JSON(http.StatusOK, gin.H{
+		"tags":          out,
+		"groups":        groups,
+		"enabled_packs": enabled,
+	})
+}
+
 // CreateObservation adds a partner "Observations for Doctor" note.
 // POST /api/partner/patients/:id/observations
 func (h *PartnerHandler) CreateObservation(c *gin.Context) {
@@ -161,12 +215,14 @@ func (h *PartnerHandler) CreateObservation(c *gin.Context) {
 	if pain == 0 {
 		pain = 1 // schema allows 1-10 display; observations marked separately
 	}
+	// Always include meta "observation"; keep any condition tags the partner picked
+	tags := normalizeObservationTags(req.Tags)
 	log := models.HealthLog{
 		UserID:        patientID,
 		AuthorID:      partnerID,
 		PainLevel:     pain,
 		ShortNotes:    strings.TrimSpace(req.ShortNotes),
-		Tags:          strings.TrimSpace(req.Tags),
+		Tags:          tags,
 		IsObservation: true,
 		CreatedAt:     time.Now().UTC(),
 	}
@@ -178,6 +234,23 @@ func (h *PartnerHandler) CreateObservation(c *gin.Context) {
 		h.Notify.ObservationAdded(patientID, partnerID, log)
 	}
 	c.JSON(http.StatusCreated, log)
+}
+
+func normalizeObservationTags(raw string) string {
+	seen := map[string]struct{}{"observation": {}}
+	parts := []string{"observation"}
+	for _, t := range strings.Split(raw, ",") {
+		t = strings.ToLower(strings.TrimSpace(t))
+		if t == "" || t == "observation" {
+			continue
+		}
+		if _, ok := seen[t]; ok {
+			continue
+		}
+		seen[t] = struct{}{}
+		parts = append(parts, t)
+	}
+	return strings.Join(parts, ",")
 }
 
 func (h *PartnerHandler) authorized(partnerID, patientID string) bool {

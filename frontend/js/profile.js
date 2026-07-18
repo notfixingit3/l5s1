@@ -18,6 +18,47 @@ export function initProfile(opts = {}) {
   document.getElementById("btn-revoke-device-code")?.addEventListener("click", revokeActiveDeviceCode);
   document.getElementById("device-code-list")?.addEventListener("click", onDeviceCodeListClick);
   document.getElementById("pack-list")?.addEventListener("change", onPackToggle);
+  document.getElementById("btn-export-json")?.addEventListener("click", () => exportLogs("json"));
+  document.getElementById("btn-export-csv")?.addEventListener("click", () => exportLogs("csv"));
+}
+
+async function exportLogs(format) {
+  const st = document.getElementById("export-status");
+  st?.classList.remove("error");
+  if (st) st.textContent = "Preparing download…";
+  try {
+    const res = await fetch(`/api/logs/export?format=${encodeURIComponent(format)}`, {
+      credentials: "include",
+    });
+    if (!res.ok) {
+      let msg = res.statusText;
+      try {
+        const j = await res.json();
+        if (j?.error) msg = j.error;
+      } catch {
+        /* ignore */
+      }
+      throw new Error(msg || "export failed");
+    }
+    const blob = await res.blob();
+    const cd = res.headers.get("Content-Disposition") || "";
+    const match = /filename="([^"]+)"/.exec(cd);
+    const name = match?.[1] || `l5s1-logs.${format}`;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    if (st) st.textContent = `Downloaded ${name}`;
+  } catch (err) {
+    if (st) {
+      st.textContent = err.message || "Export failed";
+      st.classList.add("error");
+    }
+  }
 }
 
 export async function refreshProfile() {

@@ -83,6 +83,7 @@ func New(d Deps) *gin.Engine {
 		{
 			logs.POST("", healthH.CreateLog)
 			logs.GET("", healthH.ListLogs)
+			logs.GET("/export", healthH.ExportLogs)
 			logs.GET("/summary", healthH.Summary)
 			logs.PATCH("/:id", healthH.UpdateLog)
 			logs.DELETE("/:id", healthH.DeleteLog)
@@ -108,6 +109,7 @@ func New(d Deps) *gin.Engine {
 			partner.GET("/patients", partnerH.ListPatients)
 			partner.POST("/grant", partnerH.GrantAccess)
 			partner.GET("/patients/:id/logs", partnerH.PatientLogs)
+			partner.GET("/patients/:id/tags", partnerH.PatientTags)
 			partner.POST("/patients/:id/observations", partnerH.CreateObservation)
 		}
 

@@ -4,6 +4,23 @@ All notable changes to L5S1 are documented here.
 
 Format inspired by [Keep a Changelog](https://keepachangelog.com/). Versions follow pre-release semver: `v0.0.1-beta.N`.
 
+## [0.0.1-beta.30] — 2026-07-18
+
+### Added
+- **Partner observation tags** from the patient’s enabled packs (Summary focus can include partner notes)
+- **Export** Profile → Download JSON / CSV of your logs
+- **Summary empty coaching** when a pack filter finds no matching entries/notes
+- **Login/register rate limits** (IP + username) alongside invite/device-code limits
+
+### Changed
+- **Sessions last 30 days** (cookie + SQLite session TTL); less daily re-login after deploys
+
+### Images
+```bash
+docker pull ghcr.io/notfixingit3/l5s1:v0.0.1-beta.30
+docker pull ghcr.io/notfixingit3/l5s1:latest
+```
+
 ## [0.0.1-beta.29] — 2026-07-18
 
 ### Added

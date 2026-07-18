@@ -201,7 +201,10 @@
           <div class="section-title"><h3>Timeline</h3></div>
           <ul id="partner-logs" class="entry-list"></ul>
           <h3>Note for the doctor</h3>
+          <p class="muted">Optional tags use this patient’s condition packs so Summary focus (Heart, UC, …) can include your note.</p>
           <textarea id="obs-notes" rows="3" placeholder="e.g. Significant limping on the left after ~100 steps today"></textarea>
+          <span class="field-label">Tags</span>
+          <div id="obs-tag-picker" class="tags" role="group" aria-label="Observation tags"></div>
           <button type="button" id="btn-save-obs" class="primary wide">Save observation</button>
           <p id="obs-status" class="status" role="status"></p>
         </div>
@@ -314,6 +317,14 @@
         <p class="muted">Choose which condition tags appear on your check-in. <strong>General</strong> (left/right) is always on. Partners use the same vocabulary when viewing your log.</p>
         <div id="pack-list" class="pack-list" role="group" aria-label="Tag packs"></div>
         <p id="pack-status" class="status" role="status"></p>
+
+        <div class="section-title"><h3>Export your data</h3></div>
+        <p class="muted">Download your health logs (check-ins and partner observations) for backup or your records.</p>
+        <div class="export-actions">
+          <button type="button" class="secondary" id="btn-export-json">Download JSON</button>
+          <button type="button" class="secondary" id="btn-export-csv">Download CSV</button>
+        </div>
+        <p id="export-status" class="status" role="status"></p>
 
         <div class="section-title"><h3>Passkeys &amp; devices</h3></div>
         <p class="muted">Rename devices so you know which phone or laptop is which. Removing a device signs that authenticator out of this account.</p>

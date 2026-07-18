@@ -2,10 +2,23 @@ import { api } from "./api.js";
 import { ensureTagCatalog, formatWhen, painBadge, renderTagBadges } from "./tags.js";
 
 let selectedPatientId = null;
+const obsSelectedTags = new Set();
 
 export function initPartner() {
   document.getElementById("btn-save-obs")?.addEventListener("click", saveObservation);
   document.getElementById("btn-grant")?.addEventListener("click", grantAccess);
+  document.getElementById("obs-tag-picker")?.addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-tag]");
+    if (!btn) return;
+    const tag = btn.dataset.tag;
+    if (obsSelectedTags.has(tag)) {
+      obsSelectedTags.delete(tag);
+      btn.classList.remove("selected");
+    } else {
+      obsSelectedTags.add(tag);
+      btn.classList.add("selected");
+    }
+  });
   loadPatients();
 }
 
@@ -39,7 +52,9 @@ async function openPatient(id) {
   selectedPatientId = id;
   document.getElementById("partner-detail").hidden = false;
   const list = document.getElementById("partner-logs");
+  obsSelectedTags.clear();
   await ensureTagCatalog();
+  await loadPatientTags(id);
   try {
     const data = await api(`/api/partner/patients/${id}/logs`);
     const logs = data.logs || [];
@@ -71,6 +86,44 @@ async function openPatient(id) {
   }
 }
 
+async function loadPatientTags(patientId) {
+  const picker = document.getElementById("obs-tag-picker");
+  if (!picker) return;
+  try {
+    const data = await api(`/api/partner/patients/${encodeURIComponent(patientId)}/tags`);
+    const groups = data.groups || [];
+    if (groups.length) {
+      picker.innerHTML = groups
+        .map((g) => {
+          const chips = (g.tags || [])
+            .map((t) => {
+              const key = t.key;
+              const label = t.label || key;
+              return `<button type="button" data-tag="${escapeAttr(key)}">${escapeHtml(label)}</button>`;
+            })
+            .join("");
+          if (!chips) return "";
+          return `<div class="tag-group" data-pack="${escapeAttr(g.key)}">
+            <div class="tag-group-label">${escapeHtml(g.label || g.key)}</div>
+            <div class="tag-group-chips tags">${chips}</div>
+          </div>`;
+        })
+        .join("");
+      return;
+    }
+    const tags = data.tags || [];
+    if (!tags.length) {
+      picker.innerHTML = `<span class="muted">No tags for this patient yet — they can enable packs in Profile.</span>`;
+      return;
+    }
+    picker.innerHTML = `<div class="tag-group-chips tags">${tags
+      .map((t) => `<button type="button" data-tag="${escapeAttr(t.key)}">${escapeHtml(t.label || t.key)}</button>`)
+      .join("")}</div>`;
+  } catch {
+    picker.innerHTML = `<span class="muted">Could not load tags</span>`;
+  }
+}
+
 async function saveObservation() {
   const status = document.getElementById("obs-status");
   if (!selectedPatientId) {
@@ -85,11 +138,13 @@ async function saveObservation() {
       method: "POST",
       body: {
         short_notes: document.getElementById("obs-notes").value,
-        tags: "observation",
+        tags: [...obsSelectedTags].join(","),
       },
     });
     status.textContent = "Observation saved";
     document.getElementById("obs-notes").value = "";
+    obsSelectedTags.clear();
+    document.querySelectorAll("#obs-tag-picker button.selected").forEach((b) => b.classList.remove("selected"));
     await openPatient(selectedPatientId);
   } catch (err) {
     status.textContent = err.message;
@@ -119,4 +174,8 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
   );
+}
+
+function escapeAttr(s) {
+  return escapeHtml(s);
 }

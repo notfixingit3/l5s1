@@ -190,7 +190,14 @@ async function refreshSummary() {
     }
 
     if (tagsBox) {
-      tagsBox.innerHTML = renderGroupedTagCounts(data.tag_groups, data.tag_counts);
+      const groups = data.tag_groups || [];
+      const counts = data.tag_counts || {};
+      const empty = !groups.length && !Object.keys(counts).length;
+      if (empty && data.pack_filter_label) {
+        tagsBox.innerHTML = `<p class="muted empty-inline">No ${escapeHtml(data.pack_filter_label)} tags in this period. Switch to <strong>All conditions</strong> or tag check-ins with this pack.</p>`;
+      } else {
+        tagsBox.innerHTML = renderGroupedTagCounts(groups, counts);
+      }
     }
 
     if (histBox) {
@@ -200,7 +207,11 @@ async function refreshSummary() {
     if (obsList) {
       const obs = data.observations || [];
       if (!obs.length) {
-        obsList.innerHTML = `<li class="empty-state" style="border:none;background:transparent">No partner observations in this period.</li>`;
+        obsList.innerHTML = emptyCoachHTML({
+          kind: "observations",
+          packLabel: data.pack_filter_label,
+          packFilter: data.pack_filter,
+        });
       } else {
         obsList.innerHTML = obs
           .map((o) => {
@@ -223,7 +234,12 @@ async function refreshSummary() {
     if (trend) {
       const rows = (data.trend || []).slice().reverse().slice(0, 40);
       if (!rows.length) {
-        trend.innerHTML = `<li class="empty-state" style="border:none;background:transparent">No patient entries in this period.</li>`;
+        trend.innerHTML = emptyCoachHTML({
+          kind: "entries",
+          packLabel: data.pack_filter_label,
+          packFilter: data.pack_filter,
+          totalHint: data.count,
+        });
       } else {
         trend.innerHTML = rows
           .map((t) => {
@@ -244,6 +260,21 @@ async function refreshSummary() {
   } catch (err) {
     if (box) box.innerHTML = `<p class="status error">${escapeHtml(err.message)}</p>`;
   }
+}
+
+function emptyCoachHTML({ kind, packLabel, packFilter }) {
+  const focus = packLabel || packFilter;
+  if (focus) {
+    const what = kind === "observations" ? "partner notes" : "check-ins";
+    return `<li class="empty-state clin-empty-coach" style="border:none;background:transparent">
+      <p>No ${what} with <strong>${escapeHtml(focus)}</strong> tags in this period.</p>
+      <p class="muted">Try <strong>All conditions</strong>, or tag entries with this pack on Home / Partner so they show up in a focused visit.</p>
+    </li>`;
+  }
+  if (kind === "observations") {
+    return `<li class="empty-state" style="border:none;background:transparent">No partner observations in this period.</li>`;
+  }
+  return `<li class="empty-state" style="border:none;background:transparent">No patient entries in this period.</li>`;
 }
 
 function renderGroupedTagCounts(groups, fallbackCounts) {

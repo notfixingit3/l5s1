@@ -1339,6 +1339,19 @@ button.wide {
   color: var(--primary-ink);
 }
 
+.export-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin: 0.75rem 0 0.35rem;
+}
+
+#obs-tag-picker {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0.35rem 0 0.85rem;
+}
+
 .clin-tag-group {
   margin-bottom: 0.65rem;
 }

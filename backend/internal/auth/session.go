@@ -63,7 +63,7 @@ func NewStore() *Store {
 		ceremony:   make(map[string]CeremonySession),
 		app:        make(map[string]AppSession),
 		ttl:        5 * time.Minute,
-		sessionTTL: 24 * time.Hour,
+		sessionTTL: 30 * 24 * time.Hour, // stay signed in ~30 days
 	}
 }
 
