@@ -9,7 +9,7 @@ Primary mark: three soft teal “vertebra / disc” forms — calm clinical heal
 | `logo-mark.png` / `logo-mark-512.png` | Full-resolution mark on light tile |
 | `app-icon.png` | Teal rounded app icon (PWA / homescreen) — transparent outside the squircle |
 | `frontend/assets/brand/favicon.svg` (+ `favicon-32.png`, `/favicon.ico`) | Tab favicon: mark on **transparent** background (no white tile) |
-| `logo-lockup.png` / `logo-lockup-readme.png` | Horizontal mark + **L5S1 Health Registry** (app-icon + wordmark lockup for GitHub (transparent; SVG preferred)) |
+| `logo-lockup.png` / `logo-lockup-readme.png` | App icon + **L5S1 Health Registry** wordmark (transparent PNG for GitHub README) |
 | `logo-mark.svg` / `logo-lockup.svg` | Vector versions (crisp at any size; no baked background) |
 | `logo-monogram-alt.jpg` | Alternate LS monogram exploration (not primary) |
 
@@ -21,11 +21,11 @@ App-served copies live under `frontend/assets/brand/`.
 
 ```markdown
 <p align="center">
-  <img src="branding/logo-lockup-readme.png" alt="L5S1 Health Registry" width="360" />
+  <img src="branding/logo-lockup-readme.png" alt="L5S1 Health Registry" width="480" />
 </p>
 ```
 
-Or the SVG lockup (`logo-lockup.svg`) if you want pure vectors.
+Vector: `logo-lockup.svg`.
 
 **HTML / PWA**
 
