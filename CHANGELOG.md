@@ -4,6 +4,18 @@ All notable changes to L5S1 are documented here.
 
 Format inspired by [Keep a Changelog](https://keepachangelog.com/). Versions follow pre-release semver: `v0.0.1-beta.N`.
 
+## [0.0.1-beta.33] — 2026-07-18
+
+### Fixed
+- **Mobile notifications panel** stays inside the viewport by aligning to the full header action group instead of the bell button
+- Refreshed the PWA asset cache so existing mobile installs receive the corrected layout
+
+### Images
+```bash
+docker pull ghcr.io/notfixingit3/l5s1:v0.0.1-beta.33
+docker pull ghcr.io/notfixingit3/l5s1:latest
+```
+
 ## [0.0.1-beta.32] — 2026-07-18
 
 ### Fixed

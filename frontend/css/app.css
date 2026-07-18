@@ -139,6 +139,7 @@ body.is-authed {
 }
 
 .topbar-actions {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.45rem;
@@ -149,7 +150,7 @@ body.is-authed {
 
 /* ——— Notifications ——— */
 .notif-wrap {
-  position: relative;
+  position: static;
 }
 
 .notif-btn {
