@@ -4,6 +4,17 @@ All notable changes to L5S1 are documented here.
 
 Format inspired by [Keep a Changelog](https://keepachangelog.com/). Versions follow pre-release semver: `v0.0.1-beta.N`.
 
+## [0.0.1-beta.20] — 2026-07-18
+
+### Changed
+- Footer simplified to **l5s1.com · version** (dropped “Passkeys only” fluff); still shown when signed in above the tab bar
+
+### Images
+```bash
+docker pull ghcr.io/notfixingit3/l5s1:v0.0.1-beta.20
+docker pull ghcr.io/notfixingit3/l5s1:latest
+```
+
 ## [0.0.1-beta.19] — 2026-07-18
 
 ### Fixed
