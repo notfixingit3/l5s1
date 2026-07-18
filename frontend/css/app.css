@@ -1741,11 +1741,6 @@ hr {
   border-radius: 6px;
 }
 
-.footer strong {
-  color: var(--text-secondary);
-  font-weight: 600;
-}
-
 /* ——— Empty states ——— */
 .empty-state {
   text-align: center;
