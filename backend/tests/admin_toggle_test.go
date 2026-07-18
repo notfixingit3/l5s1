@@ -171,7 +171,7 @@ func TestRequireAdminMiddleware(t *testing.T) {
 
 	patient := models.User{Username: "pat", Email: "pat@test.com", DisplayName: "Pat", Role: models.RolePatient, IsActive: true}
 	require.NoError(t, db.Create(&patient).Error)
-	tok, err := store.CreateAppSession(patient.ID, patient.Username, patient.Role)
+	tok, err := store.CreateAppSession(patient.ID, patient.Username, patient.Role, "")
 	require.NoError(t, err)
 
 	gin.SetMode(gin.TestMode)

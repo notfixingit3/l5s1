@@ -37,33 +37,41 @@ export async function refreshProfile() {
     if (em) em.value = user.email || "";
 
     const devices = user.devices || [];
+    const currentId = user.current_credential_id || "";
     if (list) {
       if (!devices.length) {
         list.innerHTML = `<li class="empty-state">No passkeys yet.</li>`;
       } else {
         list.innerHTML = devices
-          .map(
-            (d) => `
-      <li class="device-card" data-id="${escapeAttr(d.id)}">
+          .map((d) => {
+            const isCurrent = Boolean(d.is_current) || (currentId && d.id === currentId);
+            const uses = Number(d.use_count ?? d.sign_count ?? 0);
+            const lastUsed = d.last_used_at ? formatRelative(d.last_used_at) : "never";
+            return `
+      <li class="device-card ${isCurrent ? "is-current" : ""}" data-id="${escapeAttr(d.id)}">
         <div class="device-main">
-          <input
-            class="device-name-input"
-            type="text"
-            value="${escapeAttr(d.device_type || "Device")}"
-            maxlength="64"
-            aria-label="Device name"
-          />
+          <div class="device-title-row">
+            <input
+              class="device-name-input"
+              type="text"
+              value="${escapeAttr(d.device_type || "Device")}"
+              maxlength="64"
+              aria-label="Device name"
+            />
+            ${isCurrent ? `<span class="device-badge" title="Passkey used for this browser session">This session</span>` : ""}
+          </div>
           <div class="device-meta">
             Added ${d.created_at ? new Date(d.created_at).toLocaleString() : "—"}
-            · used ${d.sign_count ?? 0}×
+            · used ${uses}×
+            · last ${escapeAttr(lastUsed)}
           </div>
         </div>
         <div class="device-actions">
           <button type="button" class="secondary device-save" data-action="save">Save name</button>
-          <button type="button" class="ghost device-remove" data-action="remove">Remove</button>
+          <button type="button" class="ghost device-remove" data-action="remove"${isCurrent ? " title=\"This is the passkey for your current session\"" : ""}>Remove</button>
         </div>
-      </li>`
-          )
+      </li>`;
+          })
           .join("");
       }
     }
@@ -314,6 +322,21 @@ async function addPasskeyHere() {
     }
   } finally {
     if (btn) btn.disabled = false;
+  }
+}
+
+function formatRelative(iso) {
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "—";
+    const sec = Math.round((Date.now() - d.getTime()) / 1000);
+    if (sec < 45) return "just now";
+    if (sec < 3600) return `${Math.floor(sec / 60)}m ago`;
+    if (sec < 86400) return `${Math.floor(sec / 3600)}h ago`;
+    if (sec < 86400 * 14) return `${Math.floor(sec / 86400)}d ago`;
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  } catch {
+    return "—";
   }
 }
 

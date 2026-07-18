@@ -1,5 +1,5 @@
 /* L5S1 service worker — offline shell cache */
-const CACHE = "l5s1-v14-tabbar-dock";
+const CACHE = "l5s1-v15-device-session";
 const PRECACHE = [
   "/",
   "/css/app.css",

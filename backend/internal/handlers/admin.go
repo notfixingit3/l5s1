@@ -58,10 +58,12 @@ func (h *AdminHandler) ListUsers(c *gin.Context) {
 		return
 	}
 	type device struct {
-		ID         string    `json:"id"`
-		DeviceType string    `json:"device_type"`
-		SignCount  uint32    `json:"sign_count"`
-		CreatedAt  time.Time `json:"created_at"`
+		ID         string     `json:"id"`
+		DeviceType string     `json:"device_type"`
+		UseCount   uint32     `json:"use_count"`
+		SignCount  uint32     `json:"sign_count"`
+		LastUsedAt *time.Time `json:"last_used_at,omitempty"`
+		CreatedAt  time.Time  `json:"created_at"`
 	}
 	type row struct {
 		ID          string    `json:"id"`
@@ -82,7 +84,9 @@ func (h *AdminHandler) ListUsers(c *gin.Context) {
 			devs = append(devs, device{
 				ID:         auth.EncodeCredentialIDHex(cr.ID),
 				DeviceType: cr.DeviceType,
+				UseCount:   cr.UseCount,
 				SignCount:  cr.SignCount,
+				LastUsedAt: cr.LastUsedAt,
 				CreatedAt:  cr.CreatedAt,
 			})
 		}

@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-webauthn/webauthn/protocol"
+	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/l5s1/health-registry/internal/auth"
 	"github.com/l5s1/health-registry/internal/codes"
 	"github.com/l5s1/health-registry/internal/middleware"
@@ -322,7 +323,11 @@ func (h *AuthHandler) RegisterFinish(c *gin.Context) {
 	}
 
 	row := auth.ToModelCredential(user.ID, credential, cs.DeviceType)
-	row.CreatedAt = time.Now().UTC()
+	now := time.Now().UTC()
+	row.CreatedAt = now
+	// First use is this registration (session starts immediately).
+	row.UseCount = 1
+	row.LastUsedAt = &now
 	if err := h.DB.Create(&row).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "persist credential"})
 		return
@@ -345,7 +350,8 @@ func (h *AuthHandler) RegisterFinish(c *gin.Context) {
 		h.DB.Model(&user).Update("force_re_reg", false)
 	}
 
-	sessTok, err := h.Store.CreateAppSession(user.ID, user.Username, user.Role)
+	credHex := auth.EncodeCredentialIDHex(row.ID)
+	sessTok, err := h.Store.CreateAppSession(user.ID, user.Username, user.Role, credHex)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "session create"})
 		return
@@ -359,7 +365,7 @@ func (h *AuthHandler) RegisterFinish(c *gin.Context) {
 		"display_name": user.DisplayName,
 		"role":         user.Role,
 		"device_type":  cs.DeviceType,
-		"credential":   auth.EncodeCredentialIDHex(row.ID),
+		"credential":   credHex,
 	})
 }
 
@@ -477,19 +483,15 @@ func (h *AuthHandler) LoginFinish(c *gin.Context) {
 		return
 	}
 
-	if err := h.DB.Model(&models.Credential{}).
-		Where("id = ? AND user_id = ?", credential.ID, user.ID).
-		Updates(map[string]interface{}{
-			"sign_count":    credential.Authenticator.SignCount,
-			"user_present":  credential.Flags.UserPresent,
-			"user_verified": credential.Flags.UserVerified,
-			"backup_state":  credential.Flags.BackupState,
-		}).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "update sign count"})
+	// Track usage ourselves — many passkey providers (Bitwarden, iCloud, etc.)
+	// always report authenticator sign_count=0, so that field never advances.
+	if err := h.recordCredentialUse(user.ID, credential); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "update credential usage"})
 		return
 	}
 
-	sessTok, err := h.Store.CreateAppSession(user.ID, user.Username, user.Role)
+	credHex := auth.EncodeCredentialIDHex(credential.ID)
+	sessTok, err := h.Store.CreateAppSession(user.ID, user.Username, user.Role, credHex)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "session create"})
 		return
@@ -502,7 +504,35 @@ func (h *AuthHandler) LoginFinish(c *gin.Context) {
 		"email":        user.Email,
 		"display_name": user.DisplayName,
 		"role":         user.Role,
+		"credential":   credHex,
 	})
+}
+
+// recordCredentialUse bumps our use_count / last_used_at and only advances
+// authenticator sign_count when the authenticator reported a higher value.
+func (h *AuthHandler) recordCredentialUse(userID string, credential *webauthn.Credential) error {
+	if credential == nil {
+		return nil
+	}
+	var existing models.Credential
+	if err := h.DB.Where("id = ? AND user_id = ?", credential.ID, userID).First(&existing).Error; err != nil {
+		return err
+	}
+	now := time.Now().UTC()
+	updates := map[string]interface{}{
+		"use_count":     existing.UseCount + 1,
+		"last_used_at":  now,
+		"user_present":  credential.Flags.UserPresent,
+		"user_verified": credential.Flags.UserVerified,
+		"backup_state":  credential.Flags.BackupState,
+	}
+	// Never clobber a stored counter with a lower/zero authenticator value
+	if credential.Authenticator.SignCount > existing.SignCount {
+		updates["sign_count"] = credential.Authenticator.SignCount
+	}
+	return h.DB.Model(&models.Credential{}).
+		Where("id = ? AND user_id = ?", credential.ID, userID).
+		Updates(updates).Error
 }
 
 // Logout clears the app session.
@@ -519,20 +549,22 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 // GET /api/auth/me
 func (h *AuthHandler) Me(c *gin.Context) {
 	userID := c.GetString(middleware.ContextUserID)
+	currentCred := c.GetString(middleware.ContextCredentialID)
 	var user models.User
 	if err := h.DB.Preload("Credentials").First(&user, "id = ?", userID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
-		"id":                user.ID,
-		"username":          user.Username,
-		"email":             user.Email,
-		"display_name":      user.DisplayName,
-		"role":              user.Role,
-		"is_active":         user.IsActive,
-		"force_re_register": user.ForceReReg,
-		"devices":           devicesJSON(user.Credentials),
+		"id":                    user.ID,
+		"username":              user.Username,
+		"email":                 user.Email,
+		"display_name":          user.DisplayName,
+		"role":                  user.Role,
+		"is_active":             user.IsActive,
+		"force_re_register":     user.ForceReReg,
+		"current_credential_id": currentCred,
+		"devices":               devicesJSON(user.Credentials, currentCred),
 	})
 }
 
@@ -596,18 +628,23 @@ func (h *AuthHandler) PatchProfile(c *gin.Context) {
 	})
 }
 
-func devicesJSON(creds []models.Credential) []gin.H {
+func devicesJSON(creds []models.Credential, currentCredHex string) []gin.H {
 	devices := make([]gin.H, 0, len(creds))
 	for _, cr := range creds {
 		label := cr.DeviceType
 		if label == "" {
 			label = "Device"
 		}
+		idHex := auth.EncodeCredentialIDHex(cr.ID)
 		devices = append(devices, gin.H{
-			"id":          auth.EncodeCredentialIDHex(cr.ID),
+			"id":          idHex,
 			"device_type": label,
-			"sign_count":  cr.SignCount,
-			"created_at":  cr.CreatedAt,
+			// use_count is the reliable "times signed in" counter for the UI
+			"use_count":  cr.UseCount,
+			"sign_count": cr.SignCount, // authenticator counter (often 0 for synced passkeys)
+			"last_used_at": cr.LastUsedAt,
+			"created_at":   cr.CreatedAt,
+			"is_current":   currentCredHex != "" && idHex == currentCredHex,
 		})
 	}
 	return devices

@@ -51,12 +51,16 @@ func (u *User) BeforeCreate(tx *gorm.DB) error {
 // Credential stores multi-device WebAuthn passkeys for a user.
 // Flags (especially BackupEligible) must round-trip exactly or login validation fails.
 type Credential struct {
-	ID             []byte    `gorm:"primaryKey" json:"id"`
-	UserID         string    `gorm:"index;not null" json:"user_id"`
-	PublicKey      []byte    `gorm:"not null" json:"-"`
-	Attestation    string    `json:"attestation,omitempty"`
-	SignCount      uint32    `json:"sign_count"`
-	DeviceType     string    `json:"device_type"` // friendly label, e.g. "Neo's Mac"
+	ID             []byte     `gorm:"primaryKey" json:"id"`
+	UserID         string     `gorm:"index;not null" json:"user_id"`
+	PublicKey      []byte     `gorm:"not null" json:"-"`
+	Attestation    string     `json:"attestation,omitempty"`
+	// SignCount is the authenticator counter (often stays 0 for synced passkeys / Bitwarden).
+	SignCount uint32 `json:"sign_count"`
+	// UseCount is our own successful-auth count (always increments on login).
+	UseCount   uint32     `gorm:"default:0" json:"use_count"`
+	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
+	DeviceType string     `json:"device_type"` // friendly label, e.g. "Neo's Mac"
 	AAGUID         []byte    `json:"-"`
 	UserPresent    bool      `json:"user_present"`
 	UserVerified   bool      `json:"user_verified"`

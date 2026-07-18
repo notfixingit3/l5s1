@@ -60,10 +60,12 @@ async function loadUsers() {
             : `<ul class="admin-device-list">${devices
                 .map((d) => {
                   const when = d.created_at ? new Date(d.created_at).toLocaleString() : "—";
+                  const uses = Number(d.use_count ?? d.sign_count ?? 0);
+                  const last = d.last_used_at ? new Date(d.last_used_at).toLocaleString() : "never";
                   return `<li class="admin-device-row" data-cred-id="${esc(d.id)}">
                     <div class="admin-device-main">
                       <strong>${esc(d.device_type || "Device")}</strong>
-                      <span class="meta">added ${esc(when)} · used ${d.sign_count ?? 0}×</span>
+                      <span class="meta">added ${esc(when)} · used ${uses}× · last ${esc(last)}</span>
                     </div>
                     <button type="button" class="ghost" data-action="revoke-passkey" data-cred-id="${esc(d.id)}" data-device-name="${esc(d.device_type || "Device")}">Revoke</button>
                   </li>`;

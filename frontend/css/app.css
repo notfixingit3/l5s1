@@ -1642,6 +1642,39 @@ hr {
   border-radius: var(--radius-sm);
 }
 
+.device-card.is-current {
+  border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+  background: color-mix(in srgb, var(--primary-soft) 55%, var(--surface-soft));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 18%, transparent);
+}
+
+.device-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.device-title-row .device-name-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.device-badge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--primary-ink);
+  background: var(--primary-soft);
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+  white-space: nowrap;
+}
+
 .device-name-input {
   width: 100%;
   margin: 0;

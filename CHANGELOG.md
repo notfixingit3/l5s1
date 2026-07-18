@@ -4,6 +4,18 @@ All notable changes to L5S1 are documented here.
 
 Format inspired by [Keep a Changelog](https://keepachangelog.com/). Versions follow pre-release semver: `v0.0.1-beta.N`.
 
+## [0.0.1-beta.23] — 2026-07-17
+
+### Fixed
+- **Passkey use counter** — track our own `use_count` + `last_used_at` on login (synced passkeys like Bitwarden always report authenticator `sign_count` 0)
+- **This session badge** on the Profile device list for the passkey that signed you in
+
+### Images
+```bash
+docker pull ghcr.io/notfixingit3/l5s1:v0.0.1-beta.23
+docker pull ghcr.io/notfixingit3/l5s1:latest
+```
+
 ## [0.0.1-beta.22] — 2026-07-17
 
 ### Fixed

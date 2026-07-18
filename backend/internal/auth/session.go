@@ -22,10 +22,12 @@ type CeremonySession struct {
 
 // AppSession is the authenticated browser session after login/register.
 type AppSession struct {
-	UserID    string
-	Email     string
-	Role      string
-	ExpiresAt time.Time
+	UserID string
+	Email  string
+	Role   string
+	// CredentialID is hex-encoded passkey id used for this session (empty if unknown).
+	CredentialID string
+	ExpiresAt    time.Time
 }
 
 // Store is a thread-safe in-memory session store (dev-friendly; swap for Redis in prod).
@@ -84,17 +86,19 @@ func (s *Store) TakeCeremony(token string) (CeremonySession, bool) {
 }
 
 // CreateAppSession issues a logged-in session cookie value.
-func (s *Store) CreateAppSession(userID, email, role string) (string, error) {
+// credentialID is the hex-encoded WebAuthn credential used for this login (may be empty).
+func (s *Store) CreateAppSession(userID, email, role, credentialID string) (string, error) {
 	token, err := randomToken()
 	if err != nil {
 		return "", err
 	}
 	s.mu.Lock()
 	s.app[token] = AppSession{
-		UserID:    userID,
-		Email:     email,
-		Role:      role,
-		ExpiresAt: time.Now().Add(s.sessionTTL),
+		UserID:       userID,
+		Email:        email,
+		Role:         role,
+		CredentialID: credentialID,
+		ExpiresAt:    time.Now().Add(s.sessionTTL),
 	}
 	s.mu.Unlock()
 	return token, nil

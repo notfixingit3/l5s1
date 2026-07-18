@@ -10,9 +10,10 @@ import (
 )
 
 const (
-	ContextUserID = "userID"
-	ContextEmail  = "email"
-	ContextRole   = "role"
+	ContextUserID       = "userID"
+	ContextEmail        = "email"
+	ContextRole         = "role"
+	ContextCredentialID = "credentialID" // hex passkey id for this session
 )
 
 // AuthDeps bundles session store + cookie name + DB for middleware.
@@ -47,6 +48,7 @@ func (d *AuthDeps) RequireAuth() gin.HandlerFunc {
 		c.Set(ContextUserID, user.ID)
 		c.Set(ContextEmail, user.Username) // session principal (login id)
 		c.Set(ContextRole, user.Role)
+		c.Set(ContextCredentialID, sess.CredentialID)
 		c.Next()
 	}
 }
