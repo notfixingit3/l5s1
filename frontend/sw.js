@@ -1,5 +1,5 @@
-/* L5S1 service worker — offline shell cache */
-const CACHE = "l5s1-v22-partner-export-session";
+/* L5S1 service worker — offline shell cache + web push */
+const CACHE = "l5s1-v23-web-push";
 const PRECACHE = [
   "/",
   "/css/app.css",
@@ -14,6 +14,7 @@ const PRECACHE = [
   "/js/tags.js",
   "/js/dialog.js",
   "/js/notifications.js",
+  "/js/push.js",
   "/js/version.js",
   "/manifest.webmanifest",
   "/assets/brand/app-icon-192.png",
@@ -53,6 +54,53 @@ self.addEventListener("fetch", (event) => {
         })
         .catch(() => cached);
       return cached || network;
+    })
+  );
+});
+
+/* ——— Web Push ——— */
+self.addEventListener("push", (event) => {
+  let data = { title: "L5S1", body: "New activity", url: "/" };
+  try {
+    if (event.data) {
+      const parsed = event.data.json();
+      data = { ...data, ...parsed };
+    }
+  } catch {
+    try {
+      const text = event.data && event.data.text();
+      if (text) data.body = text;
+    } catch {
+      /* ignore */
+    }
+  }
+  const title = data.title || "L5S1";
+  const options = {
+    body: data.body || "",
+    icon: "/assets/brand/app-icon-192.png",
+    badge: "/assets/brand/app-icon-192.png",
+    tag: data.tag || data.kind || "l5s1",
+    renotify: true,
+    data: { url: data.url || "/", kind: data.kind || "" },
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const path = (event.notification.data && event.notification.data.url) || "/";
+  const target = new URL(path, self.location.origin).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      for (const client of clients) {
+        if (client.url.startsWith(self.location.origin) && "focus" in client) {
+          client.navigate(target);
+          return client.focus();
+        }
+      }
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(target);
+      }
     })
   );
 });

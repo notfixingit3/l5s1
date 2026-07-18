@@ -4,6 +4,24 @@ All notable changes to L5S1 are documented here.
 
 Format inspired by [Keep a Changelog](https://keepachangelog.com/). Versions follow pre-release semver: `v0.0.1-beta.N`.
 
+## [0.0.1-beta.31] — 2026-07-18
+
+### Added
+- **Web Push notifications** (VAPID)
+  - Patient check-in → care partners’ devices
+  - Partner observation → patient
+  - Partner access grant → partner
+  - Profile → **Enable on this device** / Disable
+  - Service worker shows system notification; tap opens the app
+  - Privacy-light push body (“open L5S1…”) — details stay in-app
+- Subscriptions stored in SQLite; VAPID keys from env or auto-generated into `app_configs`
+
+### Images
+```bash
+docker pull ghcr.io/notfixingit3/l5s1:v0.0.1-beta.31
+docker pull ghcr.io/notfixingit3/l5s1:latest
+```
+
 ## [0.0.1-beta.30] — 2026-07-18
 
 ### Added

@@ -21,6 +21,10 @@ services:
       SEED_ADMIN_USERNAME: ${SEED_ADMIN_USERNAME:-admin}
       SECURE_COOKIE: ${SECURE_COOKIE:-true}
       GIN_MODE: release
+      # Web Push (optional — if unset, app generates VAPID keys into SQLite app_configs)
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@l5s1.com}
     # Host bind only — SQLite next to compose (not a named Docker volume)
     volumes:
       - type: bind

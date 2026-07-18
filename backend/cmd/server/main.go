@@ -39,6 +39,9 @@ func main() {
 	// Durable login cookies across restarts / deploys (ceremonies stay in-memory)
 	store.AttachDB(db)
 
+	// Web Push (VAPID keys from env or auto-generated into app_configs)
+	pushSvc := services.NewPush(db)
+
 	if os.Getenv("GIN_MODE") == "" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -48,6 +51,7 @@ func main() {
 		WA:           wa,
 		Store:        store,
 		ConfigCache:  cache,
+		Push:         pushSvc,
 		CookieName:   cfg.SessionCookie,
 		SecureCookie: os.Getenv("SECURE_COOKIE") == "true",
 		FrontendDir:  cfg.FrontendStatic,

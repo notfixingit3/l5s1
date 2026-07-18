@@ -22,6 +22,7 @@ type Deps struct {
 	WA           *auth.WebAuthnService
 	Store        *auth.Store
 	ConfigCache  *services.ConfigCache
+	Push         *services.Push
 	CookieName   string
 	SecureCookie bool
 	FrontendDir  string
@@ -45,12 +46,13 @@ func New(d Deps) *gin.Engine {
 		SecureCookie: d.SecureCookie,
 		CodeLimiter:  codeLimiter,
 	}
-	notifier := &services.Notify{DB: d.DB}
+	notifier := &services.Notify{DB: d.DB, Push: d.Push}
 	healthH := &handlers.HealthHandler{DB: d.DB, Notify: notifier}
 	partnerH := &handlers.PartnerHandler{DB: d.DB, Notify: notifier}
 	adminH := &handlers.AdminHandler{DB: d.DB, ConfigCache: d.ConfigCache}
 	tagsH := &handlers.TagsHandler{DB: d.DB}
 	notifH := &handlers.NotificationHandler{DB: d.DB}
+	pushH := &handlers.PushHandler{Push: d.Push}
 
 	mw := &middleware.AuthDeps{
 		Store:      d.Store,
@@ -101,6 +103,15 @@ func New(d Deps) *gin.Engine {
 			notes.GET("/unread-count", notifH.UnreadCount)
 			notes.POST("/read-all", notifH.MarkAllRead)
 			notes.POST("/:id/read", notifH.MarkRead)
+		}
+
+		// Web Push (VAPID)
+		api.GET("/push/vapid-public-key", pushH.PublicKey) // public; needed before subscribe
+		push := api.Group("/push", mw.RequireAuth())
+		{
+			push.GET("/status", pushH.Status)
+			push.POST("/subscribe", pushH.Subscribe)
+			push.DELETE("/subscribe", pushH.Unsubscribe)
 		}
 
 		// Partner mode

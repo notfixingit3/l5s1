@@ -69,6 +69,7 @@ func Migrate(db *gorm.DB) error {
 		&models.DeviceLinkCode{},
 		&models.Tag{},
 		&models.Notification{},
+		&models.PushSubscription{},
 		&auth.SessionRow{},
 	)
 	if err != nil {

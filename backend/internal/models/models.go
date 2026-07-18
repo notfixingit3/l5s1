@@ -123,7 +123,7 @@ const (
 	NotifyPartnerGranted = "partner_granted" // patient granted access → partner
 )
 
-// Notification is an in-app alert for a user (no email/push yet).
+// Notification is an in-app alert for a user.
 type Notification struct {
 	ID         string     `gorm:"primaryKey;type:uuid" json:"id"`
 	UserID     string     `gorm:"index;not null" json:"user_id"` // recipient
@@ -144,6 +144,31 @@ func (n *Notification) BeforeCreate(tx *gorm.DB) error {
 	}
 	return nil
 }
+
+// PushSubscription is a Web Push endpoint for a signed-in user's browser/device.
+type PushSubscription struct {
+	ID        string    `gorm:"primaryKey;type:uuid" json:"id"`
+	UserID    string    `gorm:"index;not null" json:"user_id"`
+	Endpoint  string    `gorm:"uniqueIndex;type:text;not null" json:"endpoint"`
+	P256dh    string    `gorm:"type:text;not null" json:"-"`
+	Auth      string    `gorm:"type:text;not null" json:"-"`
+	UserAgent string    `gorm:"type:text" json:"user_agent,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+func (p *PushSubscription) BeforeCreate(tx *gorm.DB) error {
+	if p.ID == "" {
+		p.ID = uuid.NewString()
+	}
+	return nil
+}
+
+// AppConfig keys for VAPID (when not supplied via env).
+const (
+	ConfigVAPIDPublic  = "VAPID_PUBLIC_KEY"
+	ConfigVAPIDPrivate = "VAPID_PRIVATE_KEY"
+)
 
 // AppConfig stores dynamic runtime flags (ALLOW_SIGNUPS, etc.).
 type AppConfig struct {

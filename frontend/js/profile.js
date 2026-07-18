@@ -2,6 +2,7 @@ import { api } from "./api.js";
 import { detectDeviceLabel, formatCodeDisplay, me, registerPasskey, updateProfile } from "./auth.js";
 import { appConfirm } from "./dialog.js";
 import { invalidateTagCatalog } from "./tags.js";
+import { disablePush, enablePush, getPushStatus, isPushSupported } from "./push.js";
 
 let onProfileChange = null;
 let latestActiveCodeId = null;
@@ -20,6 +21,8 @@ export function initProfile(opts = {}) {
   document.getElementById("pack-list")?.addEventListener("change", onPackToggle);
   document.getElementById("btn-export-json")?.addEventListener("click", () => exportLogs("json"));
   document.getElementById("btn-export-csv")?.addEventListener("click", () => exportLogs("csv"));
+  document.getElementById("btn-push-enable")?.addEventListener("click", onPushEnable);
+  document.getElementById("btn-push-disable")?.addEventListener("click", onPushDisable);
 }
 
 async function exportLogs(format) {
@@ -123,6 +126,7 @@ export async function refreshProfile() {
 
     await refreshDeviceCodes();
     await refreshPacks();
+    await refreshPushStatus();
     return user;
   } catch (err) {
     if (list) list.innerHTML = `<li class="empty-state">Could not load devices</li>`;
@@ -132,6 +136,57 @@ export async function refreshProfile() {
     }
     return null;
   }
+}
+
+async function refreshPushStatus() {
+  const line = document.getElementById("push-status-line");
+  const btnOn = document.getElementById("btn-push-enable");
+  const btnOff = document.getElementById("btn-push-disable");
+  if (!line) return;
+  if (!(await isPushSupported())) {
+    line.textContent = "This browser does not support push (try Chrome/Safari PWA on a real device).";
+    if (btnOn) btnOn.disabled = true;
+    if (btnOff) btnOff.disabled = true;
+    return;
+  }
+  try {
+    const st = await getPushStatus();
+    if (!st.enabled) {
+      line.textContent = "Push is not available on the server right now.";
+      if (btnOn) btnOn.disabled = true;
+      return;
+    }
+    if (st.subscribed) {
+      line.textContent = `Push is on for this account (${st.subscription_count || 1} device${st.subscription_count > 1 ? "s" : ""}).`;
+    } else {
+      line.textContent = "Push is available — enable on this phone so you get alerts when away.";
+    }
+    if (btnOn) btnOn.disabled = false;
+    if (btnOff) btnOff.disabled = !st.subscribed;
+  } catch {
+    line.textContent = "Could not check push status.";
+  }
+}
+
+async function onPushEnable() {
+  const st = document.getElementById("push-action-status");
+  st?.classList.remove("error");
+  if (st) st.textContent = "Enabling…";
+  const res = await enablePush();
+  if (st) {
+    st.textContent = res.message;
+    st.classList.toggle("error", !res.ok);
+  }
+  await refreshPushStatus();
+}
+
+async function onPushDisable() {
+  const st = document.getElementById("push-action-status");
+  st?.classList.remove("error");
+  if (st) st.textContent = "Disabling…";
+  const res = await disablePush();
+  if (st) st.textContent = res.message;
+  await refreshPushStatus();
 }
 
 async function refreshPacks() {

@@ -9,10 +9,11 @@ import (
 	"gorm.io/gorm"
 )
 
-// Notify creates in-app notifications. Failures are soft (logged by caller) so
-// primary actions (save log / observation) never fail because of notify.
+// Notify creates in-app notifications and optional Web Push. Failures are soft
+// so primary actions (save log / observation) never fail because of notify.
 type Notify struct {
-	DB *gorm.DB
+	DB   *gorm.DB
+	Push *Push
 }
 
 func (n *Notify) userLabel(userID string) string {
@@ -21,6 +22,20 @@ func (n *Notify) userLabel(userID string) string {
 		return "Someone"
 	}
 	return u.Display()
+}
+
+func (n *Notify) push(userID, title, body, kind, url string) {
+	if n == nil || n.Push == nil {
+		return
+	}
+	// Privacy: push copy stays short; details live in-app
+	n.Push.SendToUser(userID, PushPayload{
+		Title: title,
+		Body:  body,
+		URL:   url,
+		Kind:  kind,
+		Tag:   kind, // collapse duplicates of same kind
+	})
 }
 
 // PatientLoggedIn notifies all partners linked to this patient.
@@ -34,13 +49,15 @@ func (n *Notify) PatientLoggedIn(patientID string, log models.HealthLog) {
 	}
 	label := n.userLabel(patientID)
 	title := fmt.Sprintf("%s checked in", label)
-	body := fmt.Sprintf("Pain %d", log.PainLevel)
+	// In-app can include a bit more context; push stays lighter
+	inAppBody := fmt.Sprintf("Pain %d", log.PainLevel)
 	if notes := strings.TrimSpace(log.ShortNotes); notes != "" {
 		if len(notes) > 80 {
 			notes = notes[:77] + "…"
 		}
-		body += " · " + notes
+		inAppBody += " · " + notes
 	}
+	pushBody := "Open L5S1 to see their check-in"
 	now := time.Now().UTC()
 	for _, link := range links {
 		if link.PartnerID == "" || link.PartnerID == patientID {
@@ -51,12 +68,13 @@ func (n *Notify) PatientLoggedIn(patientID string, log models.HealthLog) {
 			ActorID:   patientID,
 			Kind:      models.NotifyPatientLog,
 			Title:     title,
-			Body:      body,
+			Body:      inAppBody,
 			PatientID: patientID,
 			LogID:     log.ID,
 			CreatedAt: now,
 		}
 		_ = n.DB.Create(&row).Error
+		n.push(link.PartnerID, title, pushBody, models.NotifyPatientLog, "/?mode=partner")
 	}
 }
 
@@ -84,6 +102,7 @@ func (n *Notify) ObservationAdded(patientID, partnerID string, log models.Health
 		CreatedAt: time.Now().UTC(),
 	}
 	_ = n.DB.Create(&row).Error
+	n.push(patientID, title, "Open L5S1 to read it", models.NotifyObservation, "/?mode=patient")
 }
 
 // PartnerGranted notifies the partner they can view a patient.
@@ -92,14 +111,17 @@ func (n *Notify) PartnerGranted(patientID, partnerID string) {
 		return
 	}
 	label := n.userLabel(patientID)
+	title := "New care partner access"
+	body := fmt.Sprintf("%s shared their health log with you", label)
 	row := models.Notification{
 		UserID:    partnerID,
 		ActorID:   patientID,
 		Kind:      models.NotifyPartnerGranted,
-		Title:     "New care partner access",
-		Body:      fmt.Sprintf("%s shared their health log with you", label),
+		Title:     title,
+		Body:      body,
 		PatientID: patientID,
 		CreatedAt: time.Now().UTC(),
 	}
 	_ = n.DB.Create(&row).Error
+	n.push(partnerID, title, body, models.NotifyPartnerGranted, "/?mode=partner")
 }
