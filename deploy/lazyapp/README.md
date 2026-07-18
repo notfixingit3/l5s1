@@ -44,6 +44,12 @@ Until DNS resolves, Traefik cannot issue certificates.
 - `WEBAUTHN_ORIGINS` must include every origin users use (`https://l5s1.com` and `https://www.l5s1.com` if both are served)
 - Passkeys registered under an old host (e.g. a lab subdomain) **will not work** after the RP ID change — users re-register on the new domain
 
+## Web Push
+
+- Optional env: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`
+- If unset, the app generates VAPID keys on first start and stores them in SQLite (`app_configs`)
+- Users: **Profile → Push notifications → Enable on this device** (HTTPS; iOS needs Home Screen PWA)
+
 ## Secrets
 
 Never commit real `.env` (CrowdSec keys, etc.). Keep this template generic.
