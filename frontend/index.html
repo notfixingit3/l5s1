@@ -367,6 +367,7 @@
           <label class="app-dialog-label">
             <span class="app-dialog-label-text"></span>
             <input type="text" class="app-dialog-input" autocomplete="off" />
+            <select class="app-dialog-select" hidden></select>
           </label>
         </div>
         <div class="app-dialog-actions">
@@ -375,9 +376,11 @@
         </div>
       </div>
     </div>
+  </div>
 
-    <!-- Primary navigation: bottom tabs (no horizontal scroll) -->
-    <nav class="tabbar" id="tabbar" hidden aria-label="Primary">
+  <!-- Outside #app so position:fixed stays viewport-pinned while content scrolls -->
+  <nav class="tabbar" id="tabbar" hidden aria-label="Primary">
+    <div class="tabbar-inner">
       <button type="button" data-mode="patient" class="tab active" aria-current="page">
         <svg class="tab-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
           <path d="M12 21c-4.5-3.5-7.5-6.2-7.5-9.8A4.5 4.5 0 0 1 12 7.2a4.5 4.5 0 0 1 7.5 4c0 3.6-3 6.3-7.5 9.8z"/>
@@ -407,8 +410,9 @@
         </svg>
         <span class="tab-label">Admin</span>
       </button>
-    </nav>
-  </div>
+    </div>
+  </nav>
+
   <script type="module" src="/js/app.js"></script>
   <script>
     if ("serviceWorker" in navigator) {

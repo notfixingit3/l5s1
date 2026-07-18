@@ -59,6 +59,7 @@ function lockToAuth(msg = "", isError = false) {
   hideAllAppViews();
   if (views.auth) views.auth.hidden = false;
   appEl?.classList.remove("is-authed");
+  document.body.classList.remove("is-authed");
   if (tabbar) {
     tabbar.hidden = true;
     tabbar.setAttribute("aria-hidden", "true");
@@ -92,6 +93,7 @@ function showApp() {
     return;
   }
   appEl?.classList.add("is-authed");
+  document.body.classList.add("is-authed");
   if (tabbar) {
     tabbar.hidden = false;
     tabbar.setAttribute("aria-hidden", "false");
@@ -100,7 +102,12 @@ function showApp() {
   if (views.auth) views.auth.hidden = true;
 
   const isAdmin = currentUser.role === "admin";
-  if (tabAdmin) tabAdmin.hidden = !isAdmin;
+  if (tabAdmin) {
+    tabAdmin.hidden = !isAdmin;
+    // Ensure admin tab is in the layout and tappable on mobile
+    tabAdmin.style.display = isAdmin ? "" : "none";
+    tabAdmin.setAttribute("aria-hidden", isAdmin ? "false" : "true");
+  }
 
   applyUserChip(currentUser);
 
@@ -116,7 +123,12 @@ function showApp() {
         if (!user) return;
         currentUser = user;
         applyUserChip(user);
-        if (tabAdmin) tabAdmin.hidden = user.role !== "admin";
+        if (tabAdmin) {
+          const admin = user.role === "admin";
+          tabAdmin.hidden = !admin;
+          tabAdmin.style.display = admin ? "" : "none";
+          tabAdmin.setAttribute("aria-hidden", admin ? "false" : "true");
+        }
       },
     });
     initAdmin();
@@ -140,7 +152,8 @@ function setMode(next) {
   const meta = MODE_META[mode];
 
   document.querySelectorAll("#tabbar .tab").forEach((b) => {
-    if (b.hidden) return;
+    // Skip truly hidden tabs (e.g. Admin for non-admins)
+    if (b.hidden || b.getAttribute("aria-hidden") === "true") return;
     const on = b.dataset.mode === mode;
     b.classList.toggle("active", on);
     if (on) b.setAttribute("aria-current", "page");
@@ -196,7 +209,9 @@ tabbar?.addEventListener("click", (e) => {
     return;
   }
   const btn = e.target.closest("button[data-mode]");
-  if (btn && !btn.hidden) setMode(btn.dataset.mode);
+  if (!btn || btn.hidden) return;
+  e.preventDefault();
+  setMode(btn.dataset.mode);
 });
 
 userChip?.addEventListener("click", () => {

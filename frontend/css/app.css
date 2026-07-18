@@ -66,11 +66,13 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+  height: 100%;
 }
 
 body {
   margin: 0;
-  min-height: 100vh;
+  min-height: 100%;
+  min-height: 100dvh;
   font-family: var(--font);
   font-size: 16px;
   line-height: 1.5;
@@ -79,7 +81,8 @@ body {
     radial-gradient(900px 420px at 100% -5%, rgba(13, 148, 136, 0.09), transparent 55%),
     radial-gradient(700px 380px at -5% 20%, rgba(2, 132, 199, 0.06), transparent 50%),
     linear-gradient(180deg, #eef5f4 0%, var(--bg) 28%, #f7f9fb 100%);
-  background-attachment: fixed;
+  /* fixed attachment breaks position:fixed tabbars on some mobile browsers */
+  background-attachment: scroll;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -91,7 +94,8 @@ body {
 }
 
 #app.is-authed {
-  padding-bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 1rem);
+  /* room for fixed tabbar so content is not covered */
+  padding-bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 1.25rem);
 }
 
 #app.is-authed .footer {
@@ -210,53 +214,82 @@ body {
 }
 
 /* ——— Bottom tab bar (primary nav) ——— */
-/* display:grid overrides HTML [hidden] — only show when authenticated */
+/* Lives outside #app; fixed to the viewport (no transform centering — breaks iOS scroll). */
 .tabbar {
   display: none;
   position: fixed;
-  left: 50%;
+  left: 0;
+  right: 0;
   bottom: 0;
-  transform: translateX(-50%);
-  width: min(440px, 100%);
-  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
-  gap: 0;
-  padding: 0.4rem 0.5rem calc(0.45rem + var(--safe-bottom));
-  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
   border-top: 1px solid var(--border);
-  box-shadow: 0 -8px 28px rgba(26, 43, 51, 0.06);
+  box-shadow: 0 -8px 28px rgba(26, 43, 51, 0.08);
   backdrop-filter: blur(16px) saturate(1.2);
   -webkit-backdrop-filter: blur(16px) saturate(1.2);
-  z-index: 40;
+  z-index: 100;
+  /* Keep bar above browser chrome / overscroll */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
 }
 
-#app.is-authed .tabbar:not([hidden]) {
-  display: grid;
+body.is-authed .tabbar:not([hidden]),
+#app.is-authed ~ .tabbar:not([hidden]) {
+  display: block;
 }
 
 .tabbar[hidden] {
   display: none !important;
 }
 
+.tabbar-inner {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 0.15rem;
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
+  padding: 0.35rem 0.4rem 0.4rem;
+  box-sizing: border-box;
+}
+
 .tabbar .tab {
+  flex: 1 1 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.2rem;
+  gap: 0.15rem;
   margin: 0;
-  padding: 0.45rem 0.25rem;
+  padding: 0.4rem 0.15rem;
   border: none;
   border-radius: 14px;
   background: transparent;
   color: var(--muted);
   font: inherit;
-  font-size: 0.68rem;
+  font-size: 0.65rem;
   font-weight: 600;
   letter-spacing: 0.01em;
   cursor: pointer;
   transition: color 0.15s, background 0.15s;
-  min-height: 3.15rem;
+  min-height: 3.25rem;
+  /* Large hit target for mobile */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
   box-shadow: none;
+  pointer-events: auto;
+  position: relative;
+  z-index: 1;
+}
+
+.tabbar .tab[hidden] {
+  display: none !important;
 }
 
 .tabbar .tab:hover {
@@ -266,6 +299,7 @@ body {
 
 .tabbar .tab:active {
   transform: none;
+  background: var(--primary-soft);
 }
 
 .tabbar .tab.active {
@@ -281,16 +315,25 @@ body {
   width: 1.35rem;
   height: 1.35rem;
   flex-shrink: 0;
+  pointer-events: none; /* clicks hit the button, not the SVG */
 }
 
 .tab-label {
   line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  pointer-events: none;
 }
 
-/* Wider screens: still three equal columns, no scroll */
 @media (min-width: 480px) {
-  #app.is-authed .tabbar:not([hidden]) {
-    border-radius: 18px 18px 0 0;
+  body.is-authed .tabbar:not([hidden]),
+  #app.is-authed ~ .tabbar:not([hidden]) {
+    /* soft top corners when not full-bleed phone */
+  }
+  .tabbar-inner {
+    padding-inline: 0.5rem;
   }
 }
 
