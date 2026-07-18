@@ -53,22 +53,3 @@ func (l *AttemptLimiter) Allow(key string, failedAttempt bool) bool {
 	// Count failed attempts in window; block when at/over max.
 	return len(kept) <= l.max
 }
-
-// Remaining returns how many more failures are allowed before lockout.
-func (l *AttemptLimiter) Remaining(key string) int {
-	now := time.Now()
-	cutoff := now.Add(-l.window)
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	n := 0
-	for _, t := range l.attempts[key] {
-		if t.After(cutoff) {
-			n++
-		}
-	}
-	left := l.max - n
-	if left < 0 {
-		return 0
-	}
-	return left
-}

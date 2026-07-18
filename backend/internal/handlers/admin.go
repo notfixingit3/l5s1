@@ -759,27 +759,6 @@ func (h *AdminHandler) MoveTag(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"tags": tags})
 }
 
-// ReorderTags POST /api/admin/tags/reorder  { "ordered_ids": ["uuid", ...] }
-func (h *AdminHandler) ReorderTags(c *gin.Context) {
-	var req struct {
-		OrderedIDs []string `json:"ordered_ids"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil || len(req.OrderedIDs) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ordered_ids required"})
-		return
-	}
-	for i, id := range req.OrderedIDs {
-		if err := h.DB.Model(&models.Tag{}).Where("id = ?", id).
-			Update("sort_order", (i+1)*10).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "reorder failed"})
-			return
-		}
-	}
-	var tags []models.Tag
-	_ = h.DB.Order("sort_order asc, label asc").Find(&tags).Error
-	c.JSON(http.StatusOK, gin.H{"tags": tags})
-}
-
 // ApplyRecommendedTagOrder POST /api/admin/tags/apply-recommended
 func (h *AdminHandler) ApplyRecommendedTagOrder(c *gin.Context) {
 	if err := database.ApplyRecommendedTagOrder(h.DB); err != nil {

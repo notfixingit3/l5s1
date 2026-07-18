@@ -125,10 +125,10 @@ func New(d Deps) *gin.Engine {
 			admin.GET("/tags", adminH.ListTagsAdmin)
 			admin.POST("/tags", adminH.CreateTag)
 			admin.POST("/tags/apply-recommended", adminH.ApplyRecommendedTagOrder)
-			admin.POST("/tags/reorder", adminH.ReorderTags)
 			admin.POST("/tags/:id/move", adminH.MoveTag)
 			admin.PATCH("/tags/:id", adminH.PatchTag)
 			admin.DELETE("/tags/:id", adminH.DeleteTag)
+			// Note: GET/PUT /config kept for ops/tests (ALLOW_SIGNUPS); no SPA surface yet
 		}
 
 		api.GET("/healthz", func(c *gin.Context) {

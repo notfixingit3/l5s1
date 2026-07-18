@@ -41,7 +41,7 @@ Dockerfile skips `go test` (CI / `make test` cover that). Expect ~3–6 min vs ~
 
 When ready to release:
 
-1. Bump `VERSION` (e.g. `0.0.1-beta.26`)
+1. Bump `VERSION` (e.g. `0.0.1-beta.27`)
 2. Update `CHANGELOG.md`, defaults in `Dockerfile` / `version.go` / docs as needed
 3. Commit on `dev`
 4. `git tag -a v0.0.1-beta.N -m "…" && git push origin dev && git push origin v0.0.1-beta.N`
@@ -51,9 +51,9 @@ Image tags published on beta cut: `v0.0.1-beta.N`, `latest`, `dev` (alias of new
 
 ## Version display
 
-- Product version = clean string from `VERSION` / tag (e.g. `0.0.1-beta.26`)
+- Product version = clean string from `VERSION` / tag (e.g. `0.0.1-beta.27`)
 - Commit stamped **separately** via ldflags / `version.js`
-- Display: `v0.0.1-beta.26` or `v0.0.1-beta.26+abc1234`
+- Display: `v0.0.1-beta.27` or `v0.0.1-beta.27+abc1234`
 - **Never** bake `-g{sha}` into the version string *and* append `+{sha}` (doubled hash)
 
 ## WebAuthn / passkeys (critical)

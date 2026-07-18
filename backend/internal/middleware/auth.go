@@ -10,10 +10,11 @@ import (
 )
 
 const (
-	ContextUserID       = "userID"
-	ContextEmail        = "email"
-	ContextRole         = "role"
-	ContextCredentialID = "credentialID" // hex passkey id for this session
+	ContextUserID = "userID"
+	ContextEmail  = "email"
+	ContextRole   = "role"
+	// ContextPasskeyID is the hex-encoded WebAuthn credential for this session (not a secret).
+	ContextPasskeyID = "passkeyID"
 )
 
 // AuthDeps bundles session store + cookie name + DB for middleware.
@@ -48,7 +49,7 @@ func (d *AuthDeps) RequireAuth() gin.HandlerFunc {
 		c.Set(ContextUserID, user.ID)
 		c.Set(ContextEmail, user.Username) // session principal (login id)
 		c.Set(ContextRole, user.Role)
-		c.Set(ContextCredentialID, sess.CredentialID)
+		c.Set(ContextPasskeyID, sess.CredentialID)
 		c.Next()
 	}
 }
@@ -59,23 +60,6 @@ func (d *AuthDeps) RequireAdmin() gin.HandlerFunc {
 		role, _ := c.Get(ContextRole)
 		if role != models.RoleAdmin {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "admin only"})
-			return
-		}
-		c.Next()
-	}
-}
-
-// RequireRoles allows any of the listed roles.
-func (d *AuthDeps) RequireRoles(roles ...string) gin.HandlerFunc {
-	allowed := make(map[string]struct{}, len(roles))
-	for _, r := range roles {
-		allowed[r] = struct{}{}
-	}
-	return func(c *gin.Context) {
-		role, _ := c.Get(ContextRole)
-		rs, _ := role.(string)
-		if _, ok := allowed[rs]; !ok {
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "insufficient role"})
 			return
 		}
 		c.Next()

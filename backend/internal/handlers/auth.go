@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"io"
 	"net/http"
 	"regexp"
@@ -550,7 +549,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 // GET /api/auth/me
 func (h *AuthHandler) Me(c *gin.Context) {
 	userID := c.GetString(middleware.ContextUserID)
-	currentCred := c.GetString(middleware.ContextCredentialID)
+	currentCred := c.GetString(middleware.ContextPasskeyID)
 	var user models.User
 	if err := h.DB.Preload("Credentials").First(&user, "id = ?", userID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
@@ -738,11 +737,6 @@ func (h *AuthHandler) clearCeremonyCookie(c *gin.Context) {
 func (h *AuthHandler) setSessionCookie(c *gin.Context, token string) {
 	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie(h.CookieName, token, 86400, "/", "", h.SecureCookie, true)
-}
-
-// DecodeJSON is a small helper used by tests.
-func DecodeJSON(r io.Reader, v any) error {
-	return json.NewDecoder(r).Decode(v)
 }
 
 // consumeInvitePreview validates an invite without incrementing use count.

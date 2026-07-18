@@ -184,17 +184,6 @@ func EffectiveKeys(enabled []string) map[string]struct{} {
 	return out
 }
 
-// TagKeyPacks maps a tag key → pack keys that include it (for admin later).
-func TagKeyPacks() map[string][]string {
-	m := map[string][]string{}
-	for _, p := range Catalog() {
-		for _, tk := range p.TagKeys {
-			m[tk] = append(m[tk], p.Key)
-		}
-	}
-	return m
-}
-
 // AssignedSystemKeys is every system catalog key claimed by a pack.
 func AssignedSystemKeys() map[string]struct{} {
 	m := map[string]struct{}{}

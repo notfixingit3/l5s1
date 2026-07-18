@@ -4,6 +4,21 @@ All notable changes to L5S1 are documented here.
 
 Format inspired by [Keep a Changelog](https://keepachangelog.com/). Versions follow pre-release semver: `v0.0.1-beta.N`.
 
+## [0.0.1-beta.27] — 2026-07-18
+
+### Changed
+- **Cleanup / security hygiene**
+  - Removed unused `POST /api/admin/tags/reorder` (UI uses move up/down)
+  - Dropped dead helpers: `DecodeJSON`, `RequireRoles`, rate-limiter `Remaining`, `TagKeyPacks`
+  - Renamed session context key so gosec no longer false-positives “hardcoded credentials”
+- `make security` clean: vet + gosec (0 issues) + govulncheck + eslint
+
+### Images
+```bash
+docker pull ghcr.io/notfixingit3/l5s1:v0.0.1-beta.27
+docker pull ghcr.io/notfixingit3/l5s1:latest
+```
+
 ## [0.0.1-beta.26] — 2026-07-18
 
 ### Added
