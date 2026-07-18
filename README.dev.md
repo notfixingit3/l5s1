@@ -6,7 +6,7 @@
 **Current version:** see [`VERSION`](./VERSION) → **v0.0.1-beta.17**
 
 <p align="center">
-  <img src="branding/logo-lockup-readme.png" alt="L5S1 Health Registry" width="560" />
+  <img src="branding/logo-lockup-readme.png" alt="L5S1" width="128" />
 </p>
 
 [![CI](https://github.com/notfixingit3/l5s1/actions/workflows/ci.yml/badge.svg)](https://github.com/notfixingit3/l5s1/actions/workflows/ci.yml)
