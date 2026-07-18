@@ -1362,17 +1362,6 @@ hr {
   flex-shrink: 1;
 }
 
-/* Header pill: keep compact so brand subtitle (Daily check-in) stays one line */
-#app-version-authed {
-  max-width: 6.5rem;
-}
-
-@media (max-width: 380px) {
-  #app-version-authed {
-    display: none; /* full version still in footer */
-  }
-}
-
 /* ——— Profile / devices ——— */
 .profile-meta {
   display: grid;

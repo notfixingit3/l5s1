@@ -397,7 +397,8 @@ function paintVersion() {
   const short = `v${APP_VERSION}`;
   const full =
     APP_COMMIT && APP_COMMIT !== "dev" ? `v${APP_VERSION}+${APP_COMMIT}` : short;
-  document.querySelectorAll("#app-version, #app-version-authed").forEach((el) => {
+  // Version only in footer (not top bar)
+  document.querySelectorAll("#app-version").forEach((el) => {
     el.textContent = short;
     el.title = `L5S1 ${full}`;
   });
@@ -410,7 +411,7 @@ function paintVersion() {
       const detail = data.display || product;
       const tip =
         `L5S1 ${detail}` + (data.build_time ? ` · built ${data.build_time}` : "");
-      document.querySelectorAll("#app-version, #app-version-authed").forEach((el) => {
+      document.querySelectorAll("#app-version").forEach((el) => {
         el.textContent = product;
         el.title = tip;
       });
