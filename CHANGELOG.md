@@ -4,6 +4,18 @@ All notable changes to L5S1 are documented here.
 
 Format inspired by [Keep a Changelog](https://keepachangelog.com/). Versions follow pre-release semver: `v0.0.1-beta.N`.
 
+## [0.0.1-beta.19] — 2026-07-18
+
+### Fixed
+- **Mobile tab bar** pinned to the viewport (no longer scrolls away); Admin tab tappable with equal flex hit targets
+- Version pill removed from top bar (footer only)
+
+### Images
+```bash
+docker pull ghcr.io/notfixingit3/l5s1:v0.0.1-beta.19
+docker pull ghcr.io/notfixingit3/l5s1:latest
+```
+
 ## [0.0.1-beta.18] — 2026-07-18
 
 ### Added
