@@ -75,11 +75,22 @@ func Migrate(db *gorm.DB) error {
 	if err := backfillUserIdentity(db); err != nil {
 		return err
 	}
+	if err := backfillEnabledPacks(db); err != nil {
+		return err
+	}
 	if err := seedDefaultTags(db); err != nil {
 		return err
 	}
 	log.Println("database: migrations applied")
 	return nil
+}
+
+// backfillEnabledPacks gives existing rows the product default (stenosis) when empty.
+func backfillEnabledPacks(db *gorm.DB) error {
+	res := db.Model(&models.User{}).
+		Where("enabled_packs IS NULL OR enabled_packs = ?", "").
+		Update("enabled_packs", "stenosis")
+	return res.Error
 }
 
 // DefaultTags returns the curated tag catalog in fast-entry order:

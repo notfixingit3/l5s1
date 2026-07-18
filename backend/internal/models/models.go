@@ -16,16 +16,19 @@ const (
 
 // User represents patient, partner, and admin accounts.
 type User struct {
-	ID          string `gorm:"primaryKey;type:uuid" json:"id"`
+	ID string `gorm:"primaryKey;type:uuid" json:"id"`
 	// Defaults allow SQLite to ADD COLUMN on existing DBs; backfill sets real values.
 	Username    string `gorm:"uniqueIndex;not null;default:''" json:"username"` // login id
-	Email       string `gorm:"uniqueIndex" json:"email"`                         // contact; not verified / no mail yet
+	Email       string `gorm:"uniqueIndex" json:"email"`                        // contact; not verified / no mail yet
 	DisplayName string `gorm:"not null;default:''" json:"display_name"`
 	Role        string `gorm:"default:'patient'" json:"role"` // admin | patient | partner
 	IsActive    bool   `gorm:"default:true" json:"is_active"`
 	ForceReReg  bool   `gorm:"default:false" json:"force_re_register"`
-	CreatedAt   time.Time       `json:"created_at"`
-	Credentials []Credential    `gorm:"foreignKey:UserID" json:"credentials,omitempty"`
+	// EnabledPacks is CSV of optional tag pack keys (e.g. "stenosis,diabetes").
+	// General pack is always on and not stored here. Empty = general only.
+	EnabledPacks string `gorm:"not null;default:'stenosis'" json:"enabled_packs"`
+	CreatedAt    time.Time        `json:"created_at"`
+	Credentials  []Credential     `gorm:"foreignKey:UserID" json:"credentials,omitempty"`
 	PartnerAccess []PartnerAccess `gorm:"foreignKey:PatientID" json:"partner_access,omitempty"`
 }
 

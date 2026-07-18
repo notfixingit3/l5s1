@@ -146,6 +146,14 @@ function showApp() {
         applyUserChip(user);
         setAdminTabVisible(userIsAdmin(user));
       },
+      onPacksChanged: async () => {
+        // Refresh patient tag picker when packs change
+        try {
+          await loadTags();
+        } catch {
+          /* ignore */
+        }
+      },
     });
     initAdmin();
     initNotifications();

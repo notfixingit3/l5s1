@@ -16,6 +16,7 @@ import (
 	"github.com/l5s1/health-registry/internal/codes"
 	"github.com/l5s1/health-registry/internal/middleware"
 	"github.com/l5s1/health-registry/internal/models"
+	"github.com/l5s1/health-registry/internal/packs"
 	"github.com/l5s1/health-registry/internal/services"
 	"gorm.io/gorm"
 )
@@ -555,6 +556,10 @@ func (h *AuthHandler) Me(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 		return
 	}
+	enabledPacks := packs.ParseEnabledCSV(user.EnabledPacks)
+	if user.EnabledPacks == "" {
+		enabledPacks = packs.ParseEnabledCSV(packs.DefaultEnabledPacks)
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"id":                    user.ID,
 		"username":              user.Username,
@@ -564,6 +569,7 @@ func (h *AuthHandler) Me(c *gin.Context) {
 		"is_active":             user.IsActive,
 		"force_re_register":     user.ForceReReg,
 		"current_credential_id": currentCred,
+		"enabled_packs":         enabledPacks,
 		"devices":               devicesJSON(user.Credentials, currentCred),
 	})
 }

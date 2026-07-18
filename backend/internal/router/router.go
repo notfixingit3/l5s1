@@ -88,8 +88,10 @@ func New(d Deps) *gin.Engine {
 			logs.DELETE("/:id", healthH.DeleteLog)
 		}
 
-		// Active tags for log UI (must be signed in)
+		// Active tags + user tag packs (must be signed in)
 		api.GET("/tags", mw.RequireAuth(), tagsH.ListActive)
+		api.GET("/packs", mw.RequireAuth(), tagsH.ListPacks)
+		api.PUT("/packs", mw.RequireAuth(), tagsH.PutPacks)
 
 		// In-app notifications (patient ↔ partner)
 		notes := api.Group("/notifications", mw.RequireAuth())

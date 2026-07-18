@@ -4,6 +4,23 @@ All notable changes to L5S1 are documented here.
 
 Format inspired by [Keep a Changelog](https://keepachangelog.com/). Versions follow pre-release semver: `v0.0.1-beta.N`.
 
+## [0.0.1-beta.24] — 2026-07-17
+
+### Added
+- **Tag packs** (per-user) for the check-in picker
+  - **General** — always on (left / right / both sides)
+  - **Stenosis / spine** — regions, sensations, walking, stenosis (default on)
+  - **Diabetes** — glucose high/low (opt-in)
+- Profile → **Tag packs** toggles; `GET/PUT /api/packs`; `GET /api/tags` filters by enabled packs
+- Custom admin tags and unassigned system tags (e.g. UC / BP) stay visible when active
+- Historical log CSV keys unchanged when packs change
+
+### Images
+```bash
+docker pull ghcr.io/nottellingit3/l5s1:v0.0.1-beta.24
+docker pull ghcr.io/nottellingit3/l5s1:latest
+```
+
 ## [0.0.1-beta.23] — 2026-07-17
 
 ### Fixed

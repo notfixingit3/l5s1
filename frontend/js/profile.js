@@ -1,12 +1,15 @@
 import { api } from "./api.js";
 import { detectDeviceLabel, formatCodeDisplay, me, registerPasskey, updateProfile } from "./auth.js";
 import { appConfirm } from "./dialog.js";
+import { invalidateTagCatalog } from "./tags.js";
 
 let onProfileChange = null;
 let latestActiveCodeId = null;
+let onPacksChanged = null;
 
 export function initProfile(opts = {}) {
   onProfileChange = opts.onChange || null;
+  onPacksChanged = opts.onPacksChanged || null;
   document.getElementById("btn-add-passkey")?.addEventListener("click", addPasskeyHere);
   document.getElementById("btn-save-profile")?.addEventListener("click", saveProfile);
   document.getElementById("device-list")?.addEventListener("click", onDeviceListClick);
@@ -14,6 +17,7 @@ export function initProfile(opts = {}) {
   document.getElementById("btn-copy-device-code")?.addEventListener("click", copyActiveDeviceCode);
   document.getElementById("btn-revoke-device-code")?.addEventListener("click", revokeActiveDeviceCode);
   document.getElementById("device-code-list")?.addEventListener("click", onDeviceCodeListClick);
+  document.getElementById("pack-list")?.addEventListener("change", onPackToggle);
 }
 
 export async function refreshProfile() {
@@ -77,6 +81,7 @@ export async function refreshProfile() {
     }
 
     await refreshDeviceCodes();
+    await refreshPacks();
     return user;
   } catch (err) {
     if (list) list.innerHTML = `<li class="empty-state">Could not load devices</li>`;
@@ -85,6 +90,83 @@ export async function refreshProfile() {
       st.classList.add("error");
     }
     return null;
+  }
+}
+
+async function refreshPacks() {
+  const box = document.getElementById("pack-list");
+  const st = document.getElementById("pack-status");
+  if (!box) return;
+  if (st) {
+    st.textContent = "";
+    st.classList.remove("error");
+  }
+  try {
+    const data = await api("/api/packs");
+    const packs = data.packs || [];
+    if (!packs.length) {
+      box.innerHTML = `<p class="muted">No packs available.</p>`;
+      return;
+    }
+    box.innerHTML = packs
+      .map((p) => {
+        const locked = Boolean(p.always_on);
+        const checked = locked || Boolean(p.enabled);
+        return `
+      <label class="pack-card ${locked ? "is-locked" : ""} ${checked ? "is-on" : ""}">
+        <input type="checkbox" data-pack-key="${escapeAttr(p.key)}"
+          ${checked ? "checked" : ""} ${locked ? "disabled" : ""} />
+        <span class="pack-card-body">
+          <span class="pack-card-title">
+            <strong>${escapeAttr(p.label)}</strong>
+            ${locked ? `<span class="device-badge">Always on</span>` : ""}
+          </span>
+          <span class="pack-card-desc">${escapeAttr(p.description || "")}</span>
+          <span class="pack-card-meta">${Number(p.tag_count) || (p.tag_keys || []).length} tags</span>
+        </span>
+      </label>`;
+      })
+      .join("");
+  } catch (err) {
+    box.innerHTML = `<p class="muted">Could not load tag packs</p>`;
+    if (st) {
+      st.textContent = err.message || "Failed to load packs";
+      st.classList.add("error");
+    }
+  }
+}
+
+async function onPackToggle(e) {
+  const input = e.target.closest('input[type="checkbox"][data-pack-key]');
+  if (!input || input.disabled) return;
+  const box = document.getElementById("pack-list");
+  const st = document.getElementById("pack-status");
+  const selected = [];
+  box?.querySelectorAll('input[type="checkbox"][data-pack-key]:not(:disabled)').forEach((el) => {
+    if (el.checked) selected.push(el.dataset.packKey);
+  });
+  if (st) {
+    st.textContent = "Saving…";
+    st.classList.remove("error");
+  }
+  try {
+    await api("/api/packs", { method: "PUT", body: { packs: selected } });
+    invalidateTagCatalog();
+    if (st) st.textContent = "Tag packs updated — check-in chips will match.";
+    await refreshPacks();
+    if (typeof onPacksChanged === "function") {
+      try {
+        await onPacksChanged();
+      } catch {
+        /* ignore */
+      }
+    }
+  } catch (err) {
+    if (st) {
+      st.textContent = err.message || "Could not save packs";
+      st.classList.add("error");
+    }
+    await refreshPacks();
   }
 }
 
