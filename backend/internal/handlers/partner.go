@@ -13,7 +13,11 @@ import (
 
 // PartnerHandler serves partner observation dashboards.
 type PartnerHandler struct {
-	DB *gorm.DB
+	DB     *gorm.DB
+	Notify interface {
+		ObservationAdded(patientID, partnerID string, log models.HealthLog)
+		PartnerGranted(patientID, partnerID string)
+	}
 }
 
 type observationRequest struct {
@@ -104,6 +108,9 @@ func (h *PartnerHandler) GrantAccess(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "grant failed"})
 		return
 	}
+	if h.Notify != nil {
+		h.Notify.PartnerGranted(patientID, partner.ID)
+	}
 	c.JSON(http.StatusCreated, access)
 }
 
@@ -166,6 +173,9 @@ func (h *PartnerHandler) CreateObservation(c *gin.Context) {
 	if err := h.DB.Create(&log).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "save observation failed"})
 		return
+	}
+	if h.Notify != nil {
+		h.Notify.ObservationAdded(patientID, partnerID, log)
 	}
 	c.JSON(http.StatusCreated, log)
 }

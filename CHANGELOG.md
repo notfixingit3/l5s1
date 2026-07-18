@@ -4,6 +4,22 @@ All notable changes to L5S1 are documented here.
 
 Format inspired by [Keep a Changelog](https://keepachangelog.com/). Versions follow pre-release semver: `v0.0.1-beta.N`.
 
+## [0.0.1-beta.21] — 2026-07-17
+
+### Added
+- **In-app notifications** (bell in top bar)
+  - Patient check-in → all linked care partners
+  - Partner observation → the patient
+  - New partner access grant → the partner
+- APIs: `GET /api/notifications`, `GET /api/notifications/unread-count`, `POST /api/notifications/:id/read`, `POST /api/notifications/read-all`
+- Unread badge + panel; poll while the tab is visible
+
+### Images
+```bash
+docker pull ghcr.io/notfixingit3/l5s1:v0.0.1-beta.21
+docker pull ghcr.io/notfixingit3/l5s1:latest
+```
+
 ## [0.0.1-beta.20] — 2026-07-18
 
 ### Changed

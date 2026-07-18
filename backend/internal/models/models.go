@@ -107,6 +107,35 @@ type HealthLog struct {
 	CreatedAt  time.Time `gorm:"index" json:"created_at"`
 }
 
+// Notification kinds for in-app alerts (patient ↔ partner).
+const (
+	NotifyPatientLog     = "patient_log"     // patient check-in → partners
+	NotifyObservation    = "observation"     // partner observation → patient
+	NotifyPartnerGranted = "partner_granted" // patient granted access → partner
+)
+
+// Notification is an in-app alert for a user (no email/push yet).
+type Notification struct {
+	ID         string     `gorm:"primaryKey;type:uuid" json:"id"`
+	UserID     string     `gorm:"index;not null" json:"user_id"` // recipient
+	ActorID    string     `gorm:"index" json:"actor_id,omitempty"`
+	Kind       string     `gorm:"index;size:40;not null" json:"kind"`
+	Title      string     `gorm:"not null" json:"title"`
+	Body       string     `gorm:"type:text" json:"body"`
+	// Optional deep-link context
+	PatientID  string     `gorm:"index" json:"patient_id,omitempty"`
+	LogID      uint64     `json:"log_id,omitempty"`
+	ReadAt     *time.Time `json:"read_at,omitempty"`
+	CreatedAt  time.Time  `gorm:"index" json:"created_at"`
+}
+
+func (n *Notification) BeforeCreate(tx *gorm.DB) error {
+	if n.ID == "" {
+		n.ID = uuid.NewString()
+	}
+	return nil
+}
+
 // AppConfig stores dynamic runtime flags (ALLOW_SIGNUPS, etc.).
 type AppConfig struct {
 	Key       string    `gorm:"primaryKey" json:"key"`

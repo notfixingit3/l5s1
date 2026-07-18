@@ -1,5 +1,5 @@
 /* L5S1 service worker — offline shell cache */
-const CACHE = "l5s1-v12-dialogs";
+const CACHE = "l5s1-v13-notifications";
 const PRECACHE = [
   "/",
   "/css/app.css",
@@ -13,6 +13,7 @@ const PRECACHE = [
   "/js/admin.js",
   "/js/tags.js",
   "/js/dialog.js",
+  "/js/notifications.js",
   "/js/version.js",
   "/manifest.webmanifest",
   "/assets/brand/app-icon-192.png",

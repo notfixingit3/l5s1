@@ -45,10 +45,12 @@ func New(d Deps) *gin.Engine {
 		SecureCookie: d.SecureCookie,
 		CodeLimiter:  codeLimiter,
 	}
-	healthH := &handlers.HealthHandler{DB: d.DB}
-	partnerH := &handlers.PartnerHandler{DB: d.DB}
+	notifier := &services.Notify{DB: d.DB}
+	healthH := &handlers.HealthHandler{DB: d.DB, Notify: notifier}
+	partnerH := &handlers.PartnerHandler{DB: d.DB, Notify: notifier}
 	adminH := &handlers.AdminHandler{DB: d.DB, ConfigCache: d.ConfigCache}
 	tagsH := &handlers.TagsHandler{DB: d.DB}
+	notifH := &handlers.NotificationHandler{DB: d.DB}
 
 	mw := &middleware.AuthDeps{
 		Store:      d.Store,
@@ -88,6 +90,15 @@ func New(d Deps) *gin.Engine {
 
 		// Active tags for log UI (must be signed in)
 		api.GET("/tags", mw.RequireAuth(), tagsH.ListActive)
+
+		// In-app notifications (patient ↔ partner)
+		notes := api.Group("/notifications", mw.RequireAuth())
+		{
+			notes.GET("", notifH.List)
+			notes.GET("/unread-count", notifH.UnreadCount)
+			notes.POST("/read-all", notifH.MarkAllRead)
+			notes.POST("/:id/read", notifH.MarkRead)
+		}
 
 		// Partner mode
 		partner := api.Group("/partner", mw.RequireAuth())

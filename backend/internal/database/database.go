@@ -67,6 +67,7 @@ func Migrate(db *gorm.DB) error {
 		&models.InviteCode{},
 		&models.DeviceLinkCode{},
 		&models.Tag{},
+		&models.Notification{},
 	)
 	if err != nil {
 		return fmt.Errorf("auto-migrate: %w", err)

@@ -14,7 +14,10 @@ import (
 
 // HealthHandler manages patient health logs and clinician summaries.
 type HealthHandler struct {
-	DB *gorm.DB
+	DB     *gorm.DB
+	Notify interface {
+		PatientLoggedIn(patientID string, log models.HealthLog)
+	}
 }
 
 type createLogRequest struct {
@@ -44,6 +47,10 @@ func (h *HealthHandler) CreateLog(c *gin.Context) {
 	if err := h.DB.Create(&log).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not save log"})
 		return
+	}
+	// Notify care partners (soft — does not fail the save)
+	if h.Notify != nil {
+		h.Notify.PatientLoggedIn(userID, log)
 	}
 	c.JSON(http.StatusCreated, log)
 }

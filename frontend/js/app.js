@@ -11,6 +11,11 @@ import { initPartner } from "./partner.js";
 import { initClinician } from "./clinician.js";
 import { initProfile, refreshProfile } from "./profile.js";
 import { initAdmin, refreshAdmin } from "./admin.js";
+import {
+  initNotifications,
+  startNotificationPolling,
+  stopNotificationPolling,
+} from "./notifications.js";
 import { APP_COMMIT, APP_VERSION } from "./version.js";
 
 const views = {
@@ -60,6 +65,7 @@ function lockToAuth(msg = "", isError = false) {
   if (views.auth) views.auth.hidden = false;
   appEl?.classList.remove("is-authed");
   document.body.classList.remove("is-authed");
+  stopNotificationPolling();
   if (tabbar) {
     tabbar.hidden = true;
     tabbar.setAttribute("aria-hidden", "true");
@@ -132,10 +138,12 @@ function showApp() {
       },
     });
     initAdmin();
+    initNotifications();
     modulesReady = true;
   } else if (mode === "patient") {
     loadTags();
   }
+  startNotificationPolling();
 }
 
 function setMode(next) {
