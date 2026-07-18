@@ -1,17 +1,27 @@
 # L5S1 Health Registry
 
+**Live:** [https://l5s1.com](https://l5s1.com)
+
 Passwordless multi-condition health tracking (PWA) — WebAuthn passkeys, partner observation, clinician summary, admin invites/tags.
 
-| Branch | Contents |
-|--------|----------|
-| **`main`** | This landing page only (stable pointer) |
-| **`dev`** | Active development, CI, and container builds |
+Built for people managing overlapping conditions (e.g. stenosis, UC, blood pressure, glucose) who want a **low-friction private log** without passwords.
 
-**Current pre-release:** [`v0.0.1-beta.17`](https://github.com/notfixingit3/l5s1/releases/tag/v0.0.1-beta.17) on `dev`
+| | |
+|--|--|
+| **App** | [l5s1.com](https://l5s1.com) |
+| **Code** | Active work on [`dev`](https://github.com/notfixingit3/l5s1/tree/dev) · this branch is the landing pointer |
+| **Images** | [ghcr.io/notfixingit3/l5s1](https://github.com/notfixingit3/l5s1/pkgs/container/l5s1) |
+| **Current beta** | [`v0.0.1-beta.17`](https://github.com/notfixingit3/l5s1/releases/tag/v0.0.1-beta.17) |
 
-## Get the app
+## What it does
 
-### Docker (recommended)
+- **Passwordless sign-in** with multi-device passkeys (add a phone/laptop via a one-time device code)
+- **Daily check-in** — pain 1–10, notes, curated tags (swipe to edit or delete)
+- **Partner mode** — care partners can observe and leave notes
+- **Clinician summary** — averages, tag frequency, timeline for visits
+- **Admin** — invites, users, passkeys, tag catalog
+
+## Run with Docker
 
 ```bash
 docker pull ghcr.io/notfixingit3/l5s1:v0.0.1-beta.17
@@ -23,15 +33,12 @@ docker run --rm -p 8080:8080 \
   ghcr.io/notfixingit3/l5s1:v0.0.1-beta.17
 ```
 
-Then open **http://localhost:8080** (must be `localhost` for passkeys).
+Open **http://localhost:8080** (must be `localhost` for local passkeys).
 
 | Image tag | Notes |
 |-----------|--------|
 | `v0.0.1-beta.17` | This beta |
-| `latest` | Newest git tag |
-| `dev` | Rolling build from development branch |
-
-Packages: [ghcr.io/notfixingit3/l5s1](https://github.com/notfixingit3/l5s1/pkgs/container/l5s1)
+| `latest` | Newest beta tag |
 
 ## Develop
 
@@ -41,7 +48,7 @@ cd l5s1
 make up
 ```
 
-Full docs live on the [`dev` branch README](https://github.com/notfixingit3/l5s1/blob/dev/README.md).
+Full docs: [`dev` branch README](https://github.com/notfixingit3/l5s1/blob/dev/README.md) · [AGENTS.md](https://github.com/notfixingit3/l5s1/blob/dev/AGENTS.md)
 
 ## Sponsor
 
@@ -49,4 +56,4 @@ Full docs live on the [`dev` branch README](https://github.com/notfixingit3/l5s1
 
 ## Status
 
-Pre-release / beta. APIs and schema may change without notice until `v0.1.0`.
+Pre-release / beta. APIs and schema may change until `v0.1.0`.
