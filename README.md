@@ -1,7 +1,7 @@
-# L5S1 — development branch
+# L5S1 Health Registry — development branch
 
-> Active development lives on **`dev`**.  
-> **`main`** only hosts a pointer README until we cut a stable release.
+> **Live app:** [https://l5s1.com](https://l5s1.com)  
+> Active development lives on **`dev`**. **`main`** is a short landing README.
 
 **Current version:** see [`VERSION`](./VERSION) → **v0.0.1-beta.17**
 
@@ -11,27 +11,42 @@
 
 [![CI](https://github.com/notfixingit3/l5s1/actions/workflows/ci.yml/badge.svg)](https://github.com/notfixingit3/l5s1/actions/workflows/ci.yml)
 [![Container](https://github.com/notfixingit3/l5s1/actions/workflows/container.yml/badge.svg)](https://github.com/notfixingit3/l5s1/actions/workflows/container.yml)
+[![Website](https://img.shields.io/badge/web-l5s1.com-0d9488)](https://l5s1.com)
 
-Progressive Web App for multi-condition health tracking with passwordless multi-device WebAuthn, partner observation, clinician summary, and admin controls.
+## About
+
+L5S1 is a **passwordless progressive web app** for multi-condition health tracking. It is designed for people managing overlapping issues (lumbar stenosis / L5–S1 focus, IBD flares, blood pressure, glucose, and similar) who want a **private, low-friction log** they can use daily and share selectively with a care partner or clinician.
+
+| | |
+|--|--|
+| **Production** | [https://l5s1.com](https://l5s1.com) |
+| **Auth** | WebAuthn passkeys only — no passwords stored on the server |
+| **Stack** | Go (Gin) + SQLite · vanilla SPA/PWA · multi-arch images on GHCR |
+| **Multi-device** | User-minted 8-digit device codes (`xxxx-xxxx`) to enroll another phone/laptop |
+
+### Product surface
+
+- **Patient** — pain 1–10, notes, curated tags; swipe recent entries to edit or delete  
+- **Partner** — observation access granted by the patient  
+- **Clinician summary** — averages, histograms, tag frequency, timeline  
+- **Admin** — invite codes, user lock/roles/email, passkey revoke, tag catalog (default vs custom)
 
 ## Container images (GHCR)
 
-Images are built by GitHub Actions on every push to `dev` and on every `v*` tag.
+Images build on **`v*-beta.*` tags only** (not every `dev` push).
 
 | Tag | Meaning |
 |-----|---------|
 | `ghcr.io/notfixingit3/l5s1:v0.0.1-beta.17` | Immutable beta tag |
 | `ghcr.io/notfixingit3/l5s1:latest` | Newest beta tag |
-| `ghcr.io/notfixingit3/l5s1:dev` | Alias of newest beta (same as `latest`) |
-| `ghcr.io/notfixingit3/l5s1:sha-<short>` | Exact commit (from that tag build) |
+| `ghcr.io/notfixingit3/l5s1:dev` | Alias of newest beta |
+| `ghcr.io/notfixingit3/l5s1:sha-<short>` | Exact commit from that tag build |
 
-### Run a tagged beta
+### Run a tagged beta locally
 
 ```bash
-# Pull
 docker pull ghcr.io/notfixingit3/l5s1:v0.0.1-beta.17
 
-# Run (local WebAuthn — open http://localhost:8080 only)
 docker run --rm -p 8080:8080 \
   -e WEBAUTHN_RP_ID=localhost \
   -e WEBAUTHN_ORIGINS=http://localhost:8080 \
@@ -40,28 +55,21 @@ docker run --rm -p 8080:8080 \
   ghcr.io/notfixingit3/l5s1:v0.0.1-beta.17
 ```
 
+Open **http://localhost:8080** only (not `127.0.0.1`) so WebAuthn works.
+
 Private packages may require:
 
 ```bash
 echo $GITHUB_TOKEN | docker login ghcr.io -u USERNAME --password-stdin
 ```
 
-### Compose (from this branch)
+### Hosted (production domain)
 
-```bash
-make up          # build local image
-# or point docker-compose image at GHCR (see docker-compose.ghcr.yml)
-```
-
-Version is shown in the app footer / header pill and via:
-
-```bash
-curl -s http://localhost:8080/api/version
-```
+Template under [`deploy/lazyapp/`](./deploy/lazyapp/) — Traefik, Let's Encrypt, WebAuthn for **`l5s1.com`** / `www.l5s1.com`, SQLite on a host bind `./data`.
 
 ## Local development
 
-Test **before** cutting a beta tag — GitHub only builds on `v*-beta.*` tags.
+Test **before** cutting a beta tag — GitHub Actions run only on `v*-beta.*`.
 
 ```bash
 make up       # Docker (local image)
@@ -70,9 +78,12 @@ make security # gosec + govulncheck + eslint
 make run      # host Go process, shared ./data
 ```
 
-**Important:** Use **http://localhost:8080** (not `127.0.0.1`) so WebAuthn passkeys stay valid.
+```bash
+curl -s http://localhost:8080/api/version
+```
 
-When ready: bump `VERSION` / CHANGELOG, commit, `git tag v0.0.1-beta.N && git push origin v0.0.1-beta.N` → CI + multi-arch GHCR.
+When ready: bump `VERSION` / `CHANGELOG.md`, commit,  
+`git tag v0.0.1-beta.N && git push origin v0.0.1-beta.N` → CI + multi-arch GHCR.
 
 ## Docs
 
@@ -84,6 +95,7 @@ When ready: bump `VERSION` / CHANGELOG, commit, `git tag v0.0.1-beta.N && git pu
 | Docker + passkeys | [docs/04-docker-passkeys.md](./docs/04-docker-passkeys.md) |
 | Multi-device codes | [docs/06-multi-device-codes.md](./docs/06-multi-device-codes.md) |
 | Security scans | [docs/05-security-scan.md](./docs/05-security-scan.md) |
+| Hosted deploy | [deploy/lazyapp/README.md](./deploy/lazyapp/README.md) |
 
 ## Sponsors
 

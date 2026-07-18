@@ -15,6 +15,7 @@ Passwordless multi-condition health PWA: WebAuthn passkeys, patient logs, partne
 | Images | Multi-arch Docker → GHCR `ghcr.io/notfixingit3/l5s1` |
 
 Repo: **https://github.com/notfixingit3/l5s1**  
+Live: **https://l5s1.com**  
 Branches: **`dev`** = app; **`main`** = thin landing README only.
 
 ## Local first — GitHub only on beta tags

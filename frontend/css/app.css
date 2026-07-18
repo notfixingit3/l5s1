@@ -1334,6 +1334,16 @@ hr {
   gap: 0.5rem;
 }
 
+.footer-link {
+  color: var(--primary-ink);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.footer-link:hover {
+  text-decoration: underline;
+}
+
 .version-pill {
   display: inline-block;
   max-width: 7.5rem;
