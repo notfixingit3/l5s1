@@ -194,3 +194,58 @@ func AssignedSystemKeys() map[string]struct{} {
 	}
 	return m
 }
+
+// TagKeysForPack returns the tag key set for one pack (empty if unknown).
+func TagKeysForPack(packKey string) map[string]struct{} {
+	p, ok := ByKey(packKey)
+	if !ok {
+		return nil
+	}
+	m := make(map[string]struct{}, len(p.TagKeys))
+	for _, tk := range p.TagKeys {
+		m[tk] = struct{}{}
+	}
+	return m
+}
+
+// LogHasAnyTag reports whether CSV tags include any key in the set.
+// Empty set or empty tags → false (untagged never matches a pack filter).
+func LogHasAnyTag(tagsCSV string, keys map[string]struct{}) bool {
+	if len(keys) == 0 {
+		return false
+	}
+	for _, t := range strings.Split(tagsCSV, ",") {
+		t = strings.TrimSpace(t)
+		if t == "" {
+			continue
+		}
+		if _, ok := keys[t]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+// FilterPackOptions returns optional (non-always-on) packs for summary filters.
+// If enabled is non-nil, only those keys (plus nothing always-on) are returned.
+func FilterPackOptions(enabled []string) []Pack {
+	enSet := map[string]struct{}{}
+	for _, k := range NormalizeEnabled(enabled) {
+		enSet[k] = struct{}{}
+	}
+	// If empty enabled list, still allow filtering by any optional pack that exists
+	// (summary uses patient's enabled packs; pass them in).
+	var out []Pack
+	for _, p := range Catalog() {
+		if p.AlwaysOn {
+			continue
+		}
+		if len(enSet) > 0 {
+			if _, on := enSet[p.Key]; !on {
+				continue
+			}
+		}
+		out = append(out, p)
+	}
+	return out
+}

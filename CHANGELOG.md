@@ -4,6 +4,21 @@ All notable changes to L5S1 are documented here.
 
 Format inspired by [Keep a Changelog](https://keepachangelog.com/). Versions follow pre-release semver: `v0.0.1-beta.N`.
 
+## [0.0.1-beta.29] — 2026-07-18
+
+### Added
+- **Summary pack filter** (“Focus for this visit”): All conditions, or one enabled pack (Heart, Stenosis, UC, …)
+  - Recalculates overview, pain histogram, tag counts, timeline, and partner notes to entries tagged with that pack
+  - Untagged entries only appear under All
+  - Print/share include the focus label
+- `GET /api/logs/summary?pack=heart` (+ `pack_filters` list for the UI)
+
+### Images
+```bash
+docker pull ghcr.io/notfixingit3/l5s1:v0.0.1-beta.29
+docker pull ghcr.io/notfixingit3/l5s1:latest
+```
+
 ## [0.0.1-beta.28] — 2026-07-18
 
 ### Added

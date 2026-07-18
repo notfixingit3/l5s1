@@ -9,6 +9,7 @@ import {
 } from "./tags.js";
 
 let activePreset = "90";
+let activePackFilter = "all"; // all | heart | stenosis | ...
 let lastSummary = null;
 let lastVisitISO = null; // date YYYY-MM-DD or null
 
@@ -40,6 +41,14 @@ export function initClinician() {
       input.value = toDatetimeLocal(d);
     }
     syncPresetUI();
+    refreshSummary();
+  });
+
+  document.getElementById("clin-pack-filters")?.addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-pack-filter]");
+    if (!btn) return;
+    activePackFilter = btn.dataset.packFilter || "all";
+    syncPackFilterUI();
     refreshSummary();
   });
 
@@ -79,6 +88,31 @@ function syncPresetUI() {
   }
 }
 
+function syncPackFilterUI() {
+  document.querySelectorAll("#clin-pack-filters button[data-pack-filter]").forEach((b) => {
+    b.classList.toggle("active", (b.dataset.packFilter || "all") === activePackFilter);
+  });
+}
+
+function renderPackFilters(filters) {
+  const box = document.getElementById("clin-pack-filters");
+  if (!box) return;
+  const list = Array.isArray(filters) && filters.length
+    ? filters
+    : [{ key: "all", label: "All conditions" }];
+  // Keep selection if still valid
+  if (!list.some((f) => f.key === activePackFilter)) {
+    activePackFilter = "all";
+  }
+  box.innerHTML = list
+    .map((f) => {
+      const key = f.key || "all";
+      const on = key === activePackFilter ? " active" : "";
+      return `<button type="button" class="clin-pack-btn${on}" data-pack-filter="${escapeAttr(key)}">${escapeHtml(f.label || key)}</button>`;
+    })
+    .join("");
+}
+
 async function refreshSummary() {
   const box = document.getElementById("clin-summary");
   const tagsBox = document.getElementById("clin-tags");
@@ -89,21 +123,32 @@ async function refreshSummary() {
   const sinceInput = document.getElementById("clin-since");
   const printMeta = document.getElementById("clin-print-meta");
 
-  let q = "";
+  const params = new URLSearchParams();
   if (activePreset === "last_visit") {
-    q = "?since_last_visit=1";
+    params.set("since_last_visit", "1");
   } else if (sinceInput?.value) {
     const d = new Date(sinceInput.value);
     if (!Number.isNaN(d.getTime())) {
-      q = `?since=${encodeURIComponent(d.toISOString())}`;
+      params.set("since", d.toISOString());
     }
   }
+  if (activePackFilter && activePackFilter !== "all") {
+    params.set("pack", activePackFilter);
+  }
+  const qs = params.toString();
+  const q = qs ? `?${qs}` : "";
 
   await ensureTagCatalog();
 
   try {
     const data = await api(`/api/logs/summary${q}`);
     lastSummary = data;
+
+    renderPackFilters(data.pack_filters);
+    if (data.pack_filter) {
+      activePackFilter = data.pack_filter;
+    }
+    syncPackFilterUI();
 
     if (data.last_visit_at) {
       lastVisitISO = toDateInput(new Date(data.last_visit_at));
@@ -121,14 +166,16 @@ async function refreshSummary() {
         ? `${since.toLocaleDateString()} – ${until.toLocaleDateString()}`
         : "Last 90 days";
     if (periodEl) {
-      let suffix = "";
-      if (data.since_source === "last_visit") suffix = " · since last visit";
-      periodEl.textContent = rangeText + suffix;
+      const bits = [rangeText];
+      if (data.since_source === "last_visit") bits.push("since last visit");
+      if (data.pack_filter_label) bits.push(data.pack_filter_label);
+      periodEl.textContent = bits.join(" · ");
     }
     if (printMeta) {
       const name = data.patient_name || "Patient";
+      const focus = data.pack_filter_label ? ` · Focus: ${data.pack_filter_label}` : "";
       printMeta.hidden = false;
-      printMeta.textContent = `${name} · ${rangeText} · L5S1 visit summary`;
+      printMeta.textContent = `${name} · ${rangeText}${focus} · L5S1 visit summary`;
     }
 
     if (box) {
@@ -255,9 +302,11 @@ async function shareSummary() {
   const since = data.since ? new Date(data.since).toLocaleDateString() : "—";
   const until = data.until ? new Date(data.until).toLocaleDateString() : "—";
   const name = data.patient_name || "Patient";
+  const focus = data.pack_filter_label ? `Focus: ${data.pack_filter_label}` : "Focus: All conditions";
   const lines = [
     `L5S1 visit summary — ${name}`,
     `Period: ${since} – ${until}`,
+    focus,
     `Entries: ${data.count ?? 0} · Avg pain: ${Number(data.avg_pain || 0).toFixed(1)} · Range: ${data.count ? data.min_pain : "—"}–${data.count ? data.max_pain : "—"}`,
     `Partner notes: ${data.observation_count ?? 0}`,
   ];

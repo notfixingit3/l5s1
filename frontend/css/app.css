@@ -1306,6 +1306,39 @@ button.wide {
   margin-top: 0.25rem;
 }
 
+.clin-pack-hint {
+  margin: 0 0 0.5rem;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.clin-pack-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 0.85rem;
+}
+
+.clin-pack-btn {
+  border: 1.5px solid var(--border);
+  background: var(--surface-soft);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.4rem 0.7rem;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.clin-pack-btn.active {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary-ink);
+}
+
 .clin-tag-group {
   margin-bottom: 0.65rem;
 }

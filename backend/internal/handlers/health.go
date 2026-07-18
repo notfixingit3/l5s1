@@ -168,8 +168,8 @@ func (h *HealthHandler) ListLogs(c *gin.Context) {
 }
 
 // Summary computes clinician-style aggregates since a date (default 90d).
-// GET /api/logs/summary?since=&patient_id=
-// Includes partner observations, pack-grouped tag counts, and last_visit_at.
+// GET /api/logs/summary?since=&since_last_visit=1&pack=&patient_id=
+// pack= filters to entries that include any tag from that condition pack (e.g. heart).
 func (h *HealthHandler) Summary(c *gin.Context) {
 	userID := c.GetString(middleware.ContextUserID)
 	subjectID := userID
@@ -199,6 +199,35 @@ func (h *HealthHandler) Summary(c *gin.Context) {
 	}
 
 	until := time.Now().UTC()
+	enabled := packs.ParseEnabledCSV(subject.EnabledPacks)
+	if subject.EnabledPacks == "" {
+		enabled = packs.ParseEnabledCSV(packs.DefaultEnabledPacks)
+	}
+
+	// Specialty / pack filter (cardiologist → heart, etc.)
+	packFilter := strings.ToLower(strings.TrimSpace(c.Query("pack")))
+	if packFilter == "all" {
+		packFilter = ""
+	}
+	var packKeys map[string]struct{}
+	packFilterLabel := ""
+	if packFilter != "" {
+		p, ok := packs.ByKey(packFilter)
+		if !ok || p.AlwaysOn {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid pack filter"})
+			return
+		}
+		// Allow filter even if pack not currently enabled (history may still have tags)
+		packKeys = packs.TagKeysForPack(packFilter)
+		packFilterLabel = p.Label
+	}
+
+	filterOpts := packs.FilterPackOptions(enabled)
+	filterOut := make([]gin.H, 0, len(filterOpts)+1)
+	filterOut = append(filterOut, gin.H{"key": "all", "label": "All conditions"})
+	for _, p := range filterOpts {
+		filterOut = append(filterOut, gin.H{"key": p.Key, "label": p.Label})
+	}
 
 	var logs []models.HealthLog
 	if err := h.DB.Where("user_id = ? AND created_at >= ? AND is_observation = ?", subjectID, since, false).
@@ -206,12 +235,29 @@ func (h *HealthHandler) Summary(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "summary query failed"})
 		return
 	}
+	if packKeys != nil {
+		filtered := logs[:0]
+		for _, l := range logs {
+			if packs.LogHasAnyTag(l.Tags, packKeys) {
+				filtered = append(filtered, l)
+			}
+		}
+		logs = filtered
+	}
 
 	var observations []models.HealthLog
 	_ = h.DB.Where("user_id = ? AND created_at >= ? AND is_observation = ?", subjectID, since, true).
-		Order("created_at desc").Limit(50).Find(&observations)
+		Order("created_at desc").Limit(80).Find(&observations)
+	if packKeys != nil {
+		filtered := observations[:0]
+		for _, o := range observations {
+			if packs.LogHasAnyTag(o.Tags, packKeys) {
+				filtered = append(filtered, o)
+			}
+		}
+		observations = filtered
+	}
 
-	// Author display names for observations
 	authorIDs := map[string]struct{}{}
 	for _, o := range observations {
 		if o.AuthorID != "" {
@@ -245,32 +291,43 @@ func (h *HealthHandler) Summary(c *gin.Context) {
 	}
 
 	emptyHist := make([]int, 11)
-	enabled := packs.ParseEnabledCSV(subject.EnabledPacks)
-	if subject.EnabledPacks == "" {
-		enabled = packs.ParseEnabledCSV(packs.DefaultEnabledPacks)
+	// Tag groups: when filtering one pack, only show that pack's counts
+	groupEnabled := enabled
+	if packFilter != "" {
+		groupEnabled = []string{packFilter}
+	}
+
+	base := gin.H{
+		"since":             since,
+		"until":             until,
+		"since_source":      sinceSource,
+		"last_visit_at":     subject.LastVisitAt,
+		"patient_name":      subject.Display(),
+		"pack_filter":       packFilter,
+		"pack_filter_label": packFilterLabel,
+		"pack_filters":      filterOut,
+		"enabled_packs":     enabled,
+		"days_covered":      0,
+		"entries_per_week":  0,
+		"observations":      obsOut,
+		"observation_count": len(obsOut),
 	}
 
 	if len(logs) == 0 {
-		c.JSON(http.StatusOK, gin.H{
-			"since":            since,
-			"until":            until,
-			"since_source":     sinceSource,
-			"last_visit_at":    subject.LastVisitAt,
-			"patient_name":     subject.Display(),
-			"count":            0,
-			"avg_pain":         0,
-			"min_pain":         0,
-			"max_pain":         0,
-			"tag_counts":       map[string]int{},
-			"tag_groups":       []gin.H{},
-			"pain_histogram":   emptyHist,
-			"days_covered":     0,
-			"entries_per_week": 0,
-			"trend":            []gin.H{},
-			"observations":     obsOut,
-			"observation_count": len(obsOut),
-			"enabled_packs":    enabled,
-		})
+		base["count"] = 0
+		base["avg_pain"] = 0
+		base["min_pain"] = 0
+		base["max_pain"] = 0
+		base["tag_counts"] = map[string]int{}
+		base["tag_groups"] = []gin.H{}
+		base["pain_histogram"] = emptyHist
+		base["trend"] = []gin.H{}
+		spanDays := until.Sub(since).Hours() / 24
+		if spanDays < 1 {
+			spanDays = 1
+		}
+		base["days_covered"] = int(spanDays + 0.5)
+		c.JSON(http.StatusOK, base)
 		return
 	}
 
@@ -291,9 +348,16 @@ func (h *HealthHandler) Summary(c *gin.Context) {
 		}
 		for _, t := range strings.Split(l.Tags, ",") {
 			t = strings.TrimSpace(t)
-			if t != "" {
-				tagCounts[t]++
+			if t == "" {
+				continue
 			}
+			// When pack-filtered, only count tags in that pack
+			if packKeys != nil {
+				if _, ok := packKeys[t]; !ok {
+					continue
+				}
+			}
+			tagCounts[t]++
 		}
 		trend = append(trend, gin.H{
 			"id":          l.ID,
@@ -310,26 +374,17 @@ func (h *HealthHandler) Summary(c *gin.Context) {
 	}
 	perWeek := float64(len(logs)) / spanDays * 7
 
-	c.JSON(http.StatusOK, gin.H{
-		"since":             since,
-		"until":             until,
-		"since_source":      sinceSource,
-		"last_visit_at":     subject.LastVisitAt,
-		"patient_name":      subject.Display(),
-		"count":             len(logs),
-		"avg_pain":          float64(sum) / float64(len(logs)),
-		"min_pain":          minP,
-		"max_pain":          maxP,
-		"tag_counts":        tagCounts,
-		"tag_groups":        groupTagCountsByPack(tagCounts, enabled),
-		"pain_histogram":    hist,
-		"days_covered":      int(spanDays + 0.5),
-		"entries_per_week":  perWeek,
-		"trend":             trend,
-		"observations":      obsOut,
-		"observation_count": len(obsOut),
-		"enabled_packs":     enabled,
-	})
+	base["count"] = len(logs)
+	base["avg_pain"] = float64(sum) / float64(len(logs))
+	base["min_pain"] = minP
+	base["max_pain"] = maxP
+	base["tag_counts"] = tagCounts
+	base["tag_groups"] = groupTagCountsByPack(tagCounts, groupEnabled)
+	base["pain_histogram"] = hist
+	base["days_covered"] = int(spanDays + 0.5)
+	base["entries_per_week"] = perWeek
+	base["trend"] = trend
+	c.JSON(http.StatusOK, base)
 }
 
 // groupTagCountsByPack buckets frequency by enabled packs; leftovers → Other.

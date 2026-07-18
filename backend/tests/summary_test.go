@@ -103,6 +103,62 @@ func TestSummaryIncludesObservationsAndTagGroups(t *testing.T) {
 	require.True(t, foundOtherGlucose)
 }
 
+func TestSummaryPackFilterHeart(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := openTestDB(t)
+	patient := models.User{
+		Username: "cardio", Email: "cardio@t.test", DisplayName: "Cardio",
+		Role: models.RolePatient, IsActive: true, EnabledPacks: "stenosis,heart",
+	}
+	require.NoError(t, db.Create(&patient).Error)
+	now := time.Now().UTC()
+	require.NoError(t, db.Create(&models.HealthLog{
+		UserID: patient.ID, AuthorID: patient.ID, PainLevel: 5,
+		Tags: "foot,burning", IsObservation: false, CreatedAt: now.Add(-time.Hour),
+	}).Error)
+	require.NoError(t, db.Create(&models.HealthLog{
+		UserID: patient.ID, AuthorID: patient.ID, PainLevel: 3,
+		Tags: "bp-high,palpitations", IsObservation: false, CreatedAt: now.Add(-30 * time.Minute),
+	}).Error)
+
+	store := auth.NewStore()
+	tok, err := store.CreateAppSession(patient.ID, patient.Username, patient.Role, "")
+	require.NoError(t, err)
+	h := &handlers.HealthHandler{DB: db}
+	mw := &middleware.AuthDeps{Store: store, CookieName: "l5s1_session", DB: db}
+	r := gin.New()
+	r.GET("/summary", mw.RequireAuth(), h.Summary)
+
+	req := httptest.NewRequest(http.MethodGet, "/summary?pack=heart", nil)
+	req.AddCookie(&http.Cookie{Name: "l5s1_session", Value: tok})
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code)
+
+	var body struct {
+		Count           int    `json:"count"`
+		PackFilter      string `json:"pack_filter"`
+		PackFilterLabel string `json:"pack_filter_label"`
+		TagCounts       map[string]int `json:"tag_counts"`
+		PackFilters     []struct {
+			Key string `json:"key"`
+		} `json:"pack_filters"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+	require.Equal(t, 1, body.Count)
+	require.Equal(t, "heart", body.PackFilter)
+	require.Equal(t, "Heart", body.PackFilterLabel)
+	require.Equal(t, 1, body.TagCounts["bp-high"])
+	require.Zero(t, body.TagCounts["foot"])
+	keys := map[string]bool{}
+	for _, f := range body.PackFilters {
+		keys[f.Key] = true
+	}
+	require.True(t, keys["all"])
+	require.True(t, keys["heart"])
+	require.True(t, keys["stenosis"])
+}
+
 func TestSummarySinceLastVisit(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	db := openTestDB(t)
