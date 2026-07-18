@@ -4,6 +4,23 @@ All notable changes to L5S1 are documented here.
 
 Format inspired by [Keep a Changelog](https://keepachangelog.com/). Versions follow pre-release semver: `v0.0.1-beta.N`.
 
+## [0.0.1-beta.28] — 2026-07-18
+
+### Added
+- **Visit summary (all four)**
+  1. **Print / Share** — print-friendly layout + Share (or copy text)
+  2. **Care partner notes** in the selected period (author name + notes)
+  3. **Last visit date** — save on Summary; **Last visit** range preset
+  4. **Tags grouped by pack** in frequency (Other for history outside enabled packs)
+- `User.last_visit_at`; `PATCH /api/auth/profile` accepts `last_visit_at`
+- `GET /api/logs/summary` returns `observations`, `tag_groups`, `last_visit_at`, `since_last_visit=1`
+
+### Images
+```bash
+docker pull ghcr.io/notfixingit3/l5s1:v0.0.1-beta.28
+docker pull ghcr.io/notfixingit3/l5s1:latest
+```
+
 ## [0.0.1-beta.27] — 2026-07-18
 
 ### Changed

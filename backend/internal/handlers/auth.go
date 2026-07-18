@@ -569,11 +569,12 @@ func (h *AuthHandler) Me(c *gin.Context) {
 		"force_re_register":     user.ForceReReg,
 		"current_credential_id": currentCred,
 		"enabled_packs":         enabledPacks,
+		"last_visit_at":         user.LastVisitAt,
 		"devices":               devicesJSON(user.Credentials, currentCred),
 	})
 }
 
-// PatchProfile updates display name and/or email for the signed-in user.
+// PatchProfile updates display name, email, and/or last visit date.
 // PATCH /api/auth/profile
 func (h *AuthHandler) PatchProfile(c *gin.Context) {
 	userID := c.GetString(middleware.ContextUserID)
@@ -585,6 +586,8 @@ func (h *AuthHandler) PatchProfile(c *gin.Context) {
 	var req struct {
 		DisplayName *string `json:"display_name"`
 		Email       *string `json:"email"`
+		// LastVisitAt ISO8601 date/time; empty string clears
+		LastVisitAt *string `json:"last_visit_at"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid body"})
@@ -615,21 +618,53 @@ func (h *AuthHandler) PatchProfile(c *gin.Context) {
 		}
 		updates["email"] = em
 	}
-	if len(updates) == 0 {
+	clearLastVisit := false
+	if req.LastVisitAt != nil {
+		raw := strings.TrimSpace(*req.LastVisitAt)
+		if raw == "" {
+			clearLastVisit = true
+		} else {
+			t, err := time.Parse(time.RFC3339, raw)
+			if err != nil {
+				// accept date-only YYYY-MM-DD
+				t, err = time.Parse("2006-01-02", raw)
+			}
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid last_visit_at (use ISO date)"})
+				return
+			}
+			utc := t.UTC()
+			if utc.After(time.Now().UTC().Add(24 * time.Hour)) {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "last visit cannot be in the far future"})
+				return
+			}
+			updates["last_visit_at"] = utc
+		}
+	}
+	if len(updates) == 0 && !clearLastVisit {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "no updates"})
 		return
 	}
-	if err := h.DB.Model(&user).Updates(updates).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "update failed"})
-		return
+	if len(updates) > 0 {
+		if err := h.DB.Model(&user).Updates(updates).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "update failed"})
+			return
+		}
+	}
+	if clearLastVisit {
+		if err := h.DB.Model(&user).Update("last_visit_at", nil).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "update failed"})
+			return
+		}
 	}
 	h.DB.First(&user, "id = ?", userID)
 	c.JSON(http.StatusOK, gin.H{
-		"id":           user.ID,
-		"username":     user.Username,
-		"email":        user.Email,
-		"display_name": user.DisplayName,
-		"role":         user.Role,
+		"id":            user.ID,
+		"username":      user.Username,
+		"email":         user.Email,
+		"display_name":  user.DisplayName,
+		"role":          user.Role,
+		"last_visit_at": user.LastVisitAt,
 	})
 }
 

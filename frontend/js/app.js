@@ -8,7 +8,7 @@ import {
 } from "./auth.js";
 import { initPatient, loadTags } from "./patient.js";
 import { initPartner } from "./partner.js";
-import { initClinician } from "./clinician.js";
+import { initClinician, loadClinicianSummary } from "./clinician.js";
 import { initProfile, refreshProfile } from "./profile.js";
 import { initAdmin, refreshAdmin } from "./admin.js";
 import {
@@ -223,6 +223,9 @@ function setMode(next) {
   }
   if (mode === "patient") {
     loadTags();
+  }
+  if (mode === "clinician") {
+    loadClinicianSummary();
   }
 
   // Scroll the app pane (body no longer scrolls when signed in)

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/l5s1/health-registry/internal/middleware"
 	"github.com/l5s1/health-registry/internal/models"
+	"github.com/l5s1/health-registry/internal/packs"
 	"gorm.io/gorm"
 )
 
@@ -166,14 +168,13 @@ func (h *HealthHandler) ListLogs(c *gin.Context) {
 }
 
 // Summary computes clinician-style aggregates since a date (default 90d).
-// GET /api/logs/summary
+// GET /api/logs/summary?since=&patient_id=
+// Includes partner observations, pack-grouped tag counts, and last_visit_at.
 func (h *HealthHandler) Summary(c *gin.Context) {
 	userID := c.GetString(middleware.ContextUserID)
-	// Optional: admin/partner may pass patient_id when authorized — patient default is self
 	subjectID := userID
 	if pid := c.Query("patient_id"); pid != "" {
 		subjectID = pid
-		// Authorization for non-self is enforced by partner routes; here only self unless admin
 		role := c.GetString(middleware.ContextRole)
 		if subjectID != userID && role != models.RoleAdmin {
 			c.JSON(http.StatusForbidden, gin.H{"error": "use partner endpoints for other patients"})
@@ -181,12 +182,23 @@ func (h *HealthHandler) Summary(c *gin.Context) {
 		}
 	}
 
+	var subject models.User
+	_ = h.DB.Select("id", "username", "display_name", "enabled_packs", "last_visit_at").
+		First(&subject, "id = ?", subjectID)
+
 	since := time.Now().UTC().AddDate(0, 0, -90)
+	sinceSource := "default_90d"
 	if s := c.Query("since"); s != "" {
 		if t, err := time.Parse(time.RFC3339, s); err == nil {
-			since = t
+			since = t.UTC()
+			sinceSource = "query"
 		}
+	} else if c.Query("since_last_visit") == "1" && subject.LastVisitAt != nil {
+		since = subject.LastVisitAt.UTC()
+		sinceSource = "last_visit"
 	}
+
+	until := time.Now().UTC()
 
 	var logs []models.HealthLog
 	if err := h.DB.Where("user_id = ? AND created_at >= ? AND is_observation = ?", subjectID, since, false).
@@ -195,20 +207,69 @@ func (h *HealthHandler) Summary(c *gin.Context) {
 		return
 	}
 
-	emptyHist := make([]int, 11) // index 1–10 used
+	var observations []models.HealthLog
+	_ = h.DB.Where("user_id = ? AND created_at >= ? AND is_observation = ?", subjectID, since, true).
+		Order("created_at desc").Limit(50).Find(&observations)
+
+	// Author display names for observations
+	authorIDs := map[string]struct{}{}
+	for _, o := range observations {
+		if o.AuthorID != "" {
+			authorIDs[o.AuthorID] = struct{}{}
+		}
+	}
+	authorNames := map[string]string{}
+	if len(authorIDs) > 0 {
+		ids := make([]string, 0, len(authorIDs))
+		for id := range authorIDs {
+			ids = append(ids, id)
+		}
+		var authors []models.User
+		_ = h.DB.Select("id", "username", "display_name").Where("id IN ?", ids).Find(&authors)
+		for _, a := range authors {
+			authorNames[a.ID] = a.Display()
+		}
+	}
+
+	obsOut := make([]gin.H, 0, len(observations))
+	for _, o := range observations {
+		obsOut = append(obsOut, gin.H{
+			"id":          o.ID,
+			"pain_level":  o.PainLevel,
+			"created_at":  o.CreatedAt,
+			"tags":        o.Tags,
+			"short_notes": o.ShortNotes,
+			"author_id":   o.AuthorID,
+			"author_name": authorNames[o.AuthorID],
+		})
+	}
+
+	emptyHist := make([]int, 11)
+	enabled := packs.ParseEnabledCSV(subject.EnabledPacks)
+	if subject.EnabledPacks == "" {
+		enabled = packs.ParseEnabledCSV(packs.DefaultEnabledPacks)
+	}
+
 	if len(logs) == 0 {
 		c.JSON(http.StatusOK, gin.H{
-			"since":           since,
-			"until":           time.Now().UTC(),
-			"count":           0,
-			"avg_pain":        0,
-			"min_pain":        0,
-			"max_pain":        0,
-			"tag_counts":      map[string]int{},
-			"pain_histogram":  emptyHist,
-			"days_covered":    0,
+			"since":            since,
+			"until":            until,
+			"since_source":     sinceSource,
+			"last_visit_at":    subject.LastVisitAt,
+			"patient_name":     subject.Display(),
+			"count":            0,
+			"avg_pain":         0,
+			"min_pain":         0,
+			"max_pain":         0,
+			"tag_counts":       map[string]int{},
+			"tag_groups":       []gin.H{},
+			"pain_histogram":   emptyHist,
+			"days_covered":     0,
 			"entries_per_week": 0,
-			"trend":           []gin.H{},
+			"trend":            []gin.H{},
+			"observations":     obsOut,
+			"observation_count": len(obsOut),
+			"enabled_packs":    enabled,
 		})
 		return
 	}
@@ -243,23 +304,105 @@ func (h *HealthHandler) Summary(c *gin.Context) {
 		})
 	}
 
-	spanDays := time.Since(since).Hours() / 24
+	spanDays := until.Sub(since).Hours() / 24
 	if spanDays < 1 {
 		spanDays = 1
 	}
 	perWeek := float64(len(logs)) / spanDays * 7
 
 	c.JSON(http.StatusOK, gin.H{
-		"since":            since,
-		"until":            time.Now().UTC(),
-		"count":            len(logs),
-		"avg_pain":         float64(sum) / float64(len(logs)),
-		"min_pain":         minP,
-		"max_pain":         maxP,
-		"tag_counts":       tagCounts,
-		"pain_histogram":   hist,
-		"days_covered":     int(spanDays + 0.5),
-		"entries_per_week": perWeek,
-		"trend":            trend,
+		"since":             since,
+		"until":             until,
+		"since_source":      sinceSource,
+		"last_visit_at":     subject.LastVisitAt,
+		"patient_name":      subject.Display(),
+		"count":             len(logs),
+		"avg_pain":          float64(sum) / float64(len(logs)),
+		"min_pain":          minP,
+		"max_pain":          maxP,
+		"tag_counts":        tagCounts,
+		"tag_groups":        groupTagCountsByPack(tagCounts, enabled),
+		"pain_histogram":    hist,
+		"days_covered":      int(spanDays + 0.5),
+		"entries_per_week":  perWeek,
+		"trend":             trend,
+		"observations":      obsOut,
+		"observation_count": len(obsOut),
+		"enabled_packs":     enabled,
 	})
+}
+
+// groupTagCountsByPack buckets frequency by enabled packs; leftovers → Other.
+func groupTagCountsByPack(counts map[string]int, enabled []string) []gin.H {
+	if len(counts) == 0 {
+		return []gin.H{}
+	}
+	enSet := map[string]struct{}{}
+	for _, k := range enabled {
+		enSet[k] = struct{}{}
+	}
+	used := map[string]struct{}{}
+	var groups []gin.H
+
+	for _, p := range packs.Catalog() {
+		if !p.AlwaysOn {
+			if _, on := enSet[p.Key]; !on {
+				continue
+			}
+		}
+		type pair struct {
+			Key   string
+			Count int
+		}
+		var pairs []pair
+		for _, tk := range p.TagKeys {
+			if n, ok := counts[tk]; ok && n > 0 {
+				pairs = append(pairs, pair{Key: tk, Count: n})
+				used[tk] = struct{}{}
+			}
+		}
+		if len(pairs) == 0 {
+			continue
+		}
+		sort.Slice(pairs, func(i, j int) bool {
+			if pairs[i].Count != pairs[j].Count {
+				return pairs[i].Count > pairs[j].Count
+			}
+			return pairs[i].Key < pairs[j].Key
+		})
+		tags := make([]gin.H, 0, len(pairs))
+		for _, pr := range pairs {
+			tags = append(tags, gin.H{"key": pr.Key, "count": pr.Count})
+		}
+		groups = append(groups, gin.H{"key": p.Key, "label": p.Label, "tags": tags})
+	}
+
+	// Other / disabled-pack history
+	var other []struct {
+		Key   string
+		Count int
+	}
+	for k, n := range counts {
+		if _, ok := used[k]; ok || n <= 0 {
+			continue
+		}
+		other = append(other, struct {
+			Key   string
+			Count int
+		}{k, n})
+	}
+	if len(other) > 0 {
+		sort.Slice(other, func(i, j int) bool {
+			if other[i].Count != other[j].Count {
+				return other[i].Count > other[j].Count
+			}
+			return other[i].Key < other[j].Key
+		})
+		tags := make([]gin.H, 0, len(other))
+		for _, pr := range other {
+			tags = append(tags, gin.H{"key": pr.Key, "count": pr.Count})
+		}
+		groups = append(groups, gin.H{"key": "other", "label": "Other", "tags": tags})
+	}
+	return groups
 }

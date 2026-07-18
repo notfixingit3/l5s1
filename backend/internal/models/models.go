@@ -27,8 +27,10 @@ type User struct {
 	// EnabledPacks is CSV of optional tag pack keys (e.g. "stenosis,diabetes").
 	// General pack is always on and not stored here. Empty = general only.
 	EnabledPacks string `gorm:"not null;default:'stenosis'" json:"enabled_packs"`
-	CreatedAt    time.Time        `json:"created_at"`
-	Credentials  []Credential     `gorm:"foreignKey:UserID" json:"credentials,omitempty"`
+	// LastVisitAt is the patient's last clinician visit (for Summary “since last visit”).
+	LastVisitAt *time.Time `json:"last_visit_at,omitempty"`
+	CreatedAt   time.Time  `json:"created_at"`
+	Credentials   []Credential    `gorm:"foreignKey:UserID" json:"credentials,omitempty"`
 	PartnerAccess []PartnerAccess `gorm:"foreignKey:PatientID" json:"partner_access,omitempty"`
 }
 

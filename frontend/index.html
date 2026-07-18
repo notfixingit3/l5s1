@@ -221,25 +221,43 @@
       </section>
 
       <!-- Clinician presentation -->
-      <section id="view-clinician" class="card" hidden>
-        <div class="card-header">
+      <section id="view-clinician" class="card clin-card" hidden>
+        <div class="card-header clin-header-print">
           <span class="card-eyebrow">Visit summary</span>
           <h2>Since last appointment</h2>
-          <p class="lede">Averages, tag frequency, and timeline for the exam room.</p>
+          <p class="lede no-print">Averages, partner notes, tags, and timeline for the exam room.</p>
           <p class="period-label" id="clin-period-label">Last 90 days</p>
+          <p class="clin-print-meta print-only" id="clin-print-meta" hidden></p>
         </div>
 
-        <div class="clin-presets" id="clin-presets" role="group" aria-label="Date range">
-          <button type="button" data-days="7">7 days</button>
-          <button type="button" data-days="30">30 days</button>
-          <button type="button" data-days="90" class="active">90 days</button>
+        <div class="clin-toolbar no-print">
+          <div class="clin-presets" id="clin-presets" role="group" aria-label="Date range">
+            <button type="button" data-preset="last_visit" id="btn-preset-last-visit" title="Since your saved last visit date">Last visit</button>
+            <button type="button" data-days="7">7 days</button>
+            <button type="button" data-days="30">30 days</button>
+            <button type="button" data-days="90" class="active">90 days</button>
+          </div>
+          <div class="clin-actions">
+            <button type="button" class="secondary" id="btn-clin-print" title="Print or save as PDF">Print</button>
+            <button type="button" class="secondary" id="btn-clin-share" title="Share summary">Share</button>
+          </div>
         </div>
 
-        <label>
+        <div class="clin-visit-row no-print">
+          <label class="clin-visit-label">
+            Last visit date
+            <input id="clin-last-visit" type="date" />
+          </label>
+          <button type="button" class="ghost" id="btn-clin-set-visit-today">Set to today</button>
+          <button type="button" class="ghost" id="btn-clin-save-visit">Save visit date</button>
+        </div>
+        <p id="clin-visit-status" class="status no-print" role="status"></p>
+
+        <label class="no-print">
           Custom from date
           <input id="clin-since" type="datetime-local" />
         </label>
-        <button type="button" id="btn-clin-refresh" class="secondary wide">Apply custom range</button>
+        <button type="button" id="btn-clin-refresh" class="secondary wide no-print">Apply custom range</button>
 
         <div class="section-title"><h3>Overview</h3></div>
         <div id="clin-summary" class="summary-grid"></div>
@@ -249,6 +267,9 @@
 
         <div class="section-title"><h3>Tags in period</h3></div>
         <div id="clin-tags" class="clin-tags-panel"></div>
+
+        <div class="section-title" id="clin-obs-title"><h3>Care partner notes</h3></div>
+        <ul id="clin-observations" class="entry-list clin-obs-list"></ul>
 
         <div class="section-title"><h3>Timeline</h3></div>
         <ul id="clin-trend" class="entry-list"></ul>

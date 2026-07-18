@@ -1,5 +1,5 @@
 /* L5S1 service worker — offline shell cache */
-const CACHE = "l5s1-v19-cleanup";
+const CACHE = "l5s1-v20-summary";
 const PRECACHE = [
   "/",
   "/css/app.css",

@@ -1244,11 +1244,22 @@ button.wide {
   color: var(--primary-ink);
 }
 
+.clin-toolbar {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0.85rem 0 0.5rem;
+}
+
 .clin-presets {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 0.35rem;
-  margin: 0.85rem 0 0.75rem;
+}
+
+.clin-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
 }
 
 .clin-presets button {
@@ -1256,18 +1267,76 @@ button.wide {
   background: var(--surface-soft);
   color: var(--text-secondary);
   font: inherit;
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   font-weight: 600;
-  padding: 0.5rem;
+  padding: 0.5rem 0.25rem;
   border-radius: var(--radius-pill);
   cursor: pointer;
   box-shadow: none;
+}
+
+.clin-presets button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .clin-presets button.active {
   background: var(--primary-soft);
   border-color: var(--primary);
   color: var(--primary-ink);
+}
+
+.clin-visit-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.45rem;
+  margin: 0.5rem 0 0.25rem;
+}
+
+.clin-visit-label {
+  flex: 1 1 10rem;
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.clin-visit-label input {
+  margin-top: 0.25rem;
+}
+
+.clin-tag-group {
+  margin-bottom: 0.65rem;
+}
+
+.clin-obs-list {
+  margin-top: 0.35rem;
+}
+
+.entry-card--observation {
+  border-left: 3px solid var(--primary);
+}
+
+.badge-obs {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--primary-ink);
+  background: var(--primary-soft);
+  border: 1px solid color-mix(in srgb, var(--primary) 28%, transparent);
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+}
+
+.clin-print-meta {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.print-only {
+  display: none;
 }
 
 .hist-panel,
@@ -2093,5 +2162,86 @@ button:focus:not(:focus-visible) {
   *::before,
   *::after {
     transition: none !important;
+  }
+}
+
+/* ——— Print: exam-room friendly summary ——— */
+@media print {
+  body {
+    background: #fff !important;
+    color: #111 !important;
+  }
+
+  body * {
+    box-shadow: none !important;
+  }
+
+  .no-print,
+  .tabbar,
+  .topbar-actions,
+  .notif-wrap,
+  #btn-logout,
+  #user-chip,
+  .footer {
+    display: none !important;
+  }
+
+  #app {
+    max-width: none;
+    margin: 0;
+    padding: 0.5rem 0.75rem;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  body.is-authed {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+    display: block;
+  }
+
+  #app.is-authed {
+    overflow: visible;
+    flex: none;
+    min-height: 0;
+    padding-bottom: 0;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  #view-auth,
+  #view-patient,
+  #view-partner,
+  #view-profile,
+  #view-admin {
+    display: none !important;
+  }
+
+  #view-clinician {
+    display: block !important;
+    border: none;
+    padding: 0;
+    background: transparent;
+  }
+
+  .card {
+    border: none;
+    box-shadow: none;
+    padding: 0;
+  }
+
+  .section-title {
+    break-after: avoid;
+  }
+
+  .entry-list {
+    break-inside: avoid;
+  }
+
+  .pain-histogram {
+    break-inside: avoid;
   }
 }
