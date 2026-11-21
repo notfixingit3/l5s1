@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"io"
+	"log"
 	"net/http"
 	"regexp"
 	"strings"
@@ -358,26 +359,33 @@ func (h *AuthHandler) RegisterFinish(c *gin.Context) {
 	// First use is this registration (session starts immediately).
 	row.UseCount = 1
 	row.LastUsedAt = &now
-	if err := h.DB.Create(&row).Error; err != nil {
+	// Persist the passkey and redeem the invite / device-link atomically —
+	// a crash mid-sequence must not leave a redeemed code without a passkey.
+	err = h.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&row).Error; err != nil {
+			return err
+		}
+		if cs.InviteID != "" {
+			if err := redeemInvite(tx, cs.InviteID); err != nil {
+				// Credential is saved; surface soft warning but still log the user in
+				log.Printf("auth: invite redeem failed: %v", err)
+			}
+		}
+		if cs.DeviceLinkCodeID != "" {
+			if err := redeemDeviceLink(tx, cs.DeviceLinkCodeID); err != nil {
+				log.Printf("auth: device-link redeem failed: %v", err)
+			}
+		}
+		if user.ForceReReg {
+			if err := tx.Model(&user).Update("force_re_reg", false).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "persist credential"})
 		return
-	}
-
-	// Redeem invite / device-link only after a successful passkey (not on abandoned begins)
-	if cs.InviteID != "" {
-		if err := redeemInvite(h.DB, cs.InviteID); err != nil {
-			// Credential is already saved; surface soft warning but still log the user in
-			_ = err
-		}
-	}
-	if cs.DeviceLinkCodeID != "" {
-		if err := redeemDeviceLink(h.DB, cs.DeviceLinkCodeID); err != nil {
-			_ = err
-		}
-	}
-
-	if user.ForceReReg {
-		h.DB.Model(&user).Update("force_re_reg", false)
 	}
 
 	credHex := auth.EncodeCredentialIDHex(row.ID)

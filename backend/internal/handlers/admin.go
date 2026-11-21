@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"log"
 	"net/http"
 	"regexp"
@@ -558,17 +559,21 @@ func (h *AdminHandler) PatchTag(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "no updates"})
 		return
 	}
-	// If renaming a custom key that is in use, rewrite logs to the new key
+	// If renaming a custom key that is in use, rewrite logs to the new key —
+	// tag update and log rewrite commit or roll back together.
 	oldKey := tag.Key
-	if err := h.DB.Model(&tag).Updates(updates).Error; err != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "update failed (key may be taken)"})
-		return
-	}
-	if nk, ok := updates["key"].(string); ok && nk != oldKey {
-		if err := rewriteTagKeyOnLogs(h.DB, oldKey, nk); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "updated tag but failed to rewrite log references"})
-			return
+	err := h.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&tag).Updates(updates).Error; err != nil {
+			return err
 		}
+		if nk, ok := updates["key"].(string); ok && nk != oldKey {
+			return rewriteTagKeyOnLogs(tx, oldKey, nk)
+		}
+		return nil
+	})
+	if err != nil {
+		c.JSON(http.StatusConflict, gin.H{"error": "update failed (key may be taken, or log rewrite failed — retry)"})
+		return
 	}
 	h.DB.First(&tag, "id = ?", id)
 	c.JSON(http.StatusOK, tag)
@@ -619,19 +624,31 @@ func (h *AdminHandler) DeleteTag(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "replacement tag not found"})
 			return
 		}
-		if err := rewriteTagKeyOnLogs(h.DB, tag.Key, replaceKey); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to rewrite log tags"})
-			return
-		}
 	}
 
-	res := h.DB.Where("id = ?", id).Delete(&models.Tag{})
-	if res.Error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "delete failed"})
-		return
-	}
-	if res.RowsAffected == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "tag not found"})
+	// Log rewrite (when a replacement was chosen) and the delete commit or
+	// roll back together — never a half-rewritten timeline.
+	err := h.DB.Transaction(func(tx *gorm.DB) error {
+		if usage > 0 {
+			if err := rewriteTagKeyOnLogs(tx, tag.Key, replaceKey); err != nil {
+				return err
+			}
+		}
+		res := tx.Where("id = ?", id).Delete(&models.Tag{})
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return gorm.ErrRecordNotFound
+		}
+		return nil
+	})
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "tag not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "delete failed (log rewrite may be partial — retry)"})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -801,11 +818,13 @@ func (h *AdminHandler) MoveTag(c *gin.Context) {
 		oa, ob = a.SortOrder, b.SortOrder
 	}
 
-	if err := h.DB.Model(&models.Tag{}).Where("id = ?", a.ID).Update("sort_order", ob).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "move failed"})
-		return
-	}
-	if err := h.DB.Model(&models.Tag{}).Where("id = ?", b.ID).Update("sort_order", oa).Error; err != nil {
+	swapErr := h.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&models.Tag{}).Where("id = ?", a.ID).Update("sort_order", ob).Error; err != nil {
+			return err
+		}
+		return tx.Model(&models.Tag{}).Where("id = ?", b.ID).Update("sort_order", oa).Error
+	})
+	if swapErr != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "move failed"})
 		return
 	}
