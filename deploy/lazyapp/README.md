@@ -47,8 +47,18 @@ Until DNS resolves, Traefik cannot issue certificates.
 ## Web Push
 
 - Optional env: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`
-- If unset, the app generates VAPID keys on first start and stores them in SQLite (`app_configs`)
+- If unset, the app generates VAPID keys on first start and stores them in SQLite (`app_configs`); `GET /api/admin/config` redacts the private key
 - Users: **Profile → Push notifications → Enable on this device** (HTTPS; iOS needs Home Screen PWA)
+
+## First admin passkey (bootstrap)
+
+`ALLOW_SIGNUPS` defaults to `false`: new accounts always need an invite, and zero-credential shells (like the seeded `admin`) cannot be claimed. To bind the first admin passkey:
+
+1. Start once with `ALLOW_SIGNUPS=true` (env in `.env`)
+2. Open the app → **Create account** → username `admin` (no invite needed for the existing shell) → register the passkey
+3. Set `ALLOW_SIGNUPS=false` again (Admin → config or remove the env) and restart if you removed the env
+
+The server logs a warning on every start while an admin account has no passkey.
 
 ## Secrets
 

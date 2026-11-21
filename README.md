@@ -3,7 +3,7 @@
 > **Live app:** [https://l5s1.com](https://l5s1.com)  
 > Active development lives on **`dev`**. **`main`** is a short landing README.
 
-**Current version:** see [`VERSION`](./VERSION) → **v0.0.1-beta.33**
+**Current version:** see [`VERSION`](./VERSION) → **v0.0.1-beta.34**
 
 <p align="center">
   <img src="branding/logo-lockup-readme.png" alt="L5S1" width="220" />
@@ -37,7 +37,7 @@ Images build on **`v*-beta.*` tags only** (not every `dev` push).
 
 | Tag | Meaning |
 |-----|---------|
-| `ghcr.io/notfixingit3/l5s1:v0.0.1-beta.33` | Immutable beta tag |
+| `ghcr.io/notfixingit3/l5s1:v0.0.1-beta.34` | Immutable beta tag |
 | `ghcr.io/notfixingit3/l5s1:latest` | Newest beta tag |
 | `ghcr.io/notfixingit3/l5s1:dev` | Alias of newest beta |
 | `ghcr.io/notfixingit3/l5s1:sha-<short>` | Exact commit from that tag build |
@@ -45,17 +45,26 @@ Images build on **`v*-beta.*` tags only** (not every `dev` push).
 ### Run a tagged beta locally
 
 ```bash
-docker pull ghcr.io/notfixingit3/l5s1:v0.0.1-beta.33
+docker pull ghcr.io/notfixingit3/l5s1:v0.0.1-beta.34
 
 docker run --rm -p 8080:8080 \
   -e WEBAUTHN_RP_ID=localhost \
   -e WEBAUTHN_ORIGINS=http://localhost:8080 \
   -e SEED_ADMIN_USERNAME=admin \
+  -e ALLOW_SIGNUPS=true \
+  -e SEED_DEMO_ACCOUNTS=true \
   -v l5s1-data:/data \
-  ghcr.io/notfixingit3/l5s1:v0.0.1-beta.33
+  ghcr.io/notfixingit3/l5s1:v0.0.1-beta.34
 ```
 
 Open **http://localhost:8080** only (not `127.0.0.1`) so WebAuthn works.
+
+> `ALLOW_SIGNUPS=true` lets you bind the seeded admin's **first** passkey via
+> Create account; brand-new accounts always need an invite. Both
+> `ALLOW_SIGNUPS` and `SEED_DEMO_ACCOUNTS` default to **off** — leave them off
+> on any shared/hosted instance. The container runs as a non-root `l5s1`
+> user; with a host bind mount, match ownership with
+> `--user $(id -u):$(id -g)` or `chown` the data dir to the container uid.
 
 Private packages may require:
 
@@ -69,12 +78,12 @@ Template under [`deploy/lazyapp/`](./deploy/lazyapp/) — Traefik, Let's Encrypt
 
 ## Local development
 
-Test **before** cutting a beta tag — GitHub Actions run only on `v*-beta.*`.
+CI runs on every `dev` push and PR (tests, vet, gosec, govulncheck, eslint); container images still build on `v*-beta.*` tags only. Test locally before cutting a beta:
 
 ```bash
-make up       # Docker (local image)
+make up       # Docker (local image, non-root l5s1 user; APP_UID matches your uid)
 make test     # Go tests
-make security # gosec + govulncheck + eslint
+make security # vet + gosec + govulncheck + eslint
 make run      # host Go process, shared ./data
 ```
 
