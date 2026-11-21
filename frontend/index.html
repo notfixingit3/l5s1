@@ -481,10 +481,6 @@
   </nav>
 
   <script type="module" src="/js/app.js"></script>
-  <script>
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch(() => {});
-    }
-  </script>
+  <script src="/js/register-sw.js" defer></script>
 </body>
 </html>
