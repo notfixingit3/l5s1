@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 	"regexp"
 	"strings"
@@ -20,6 +21,8 @@ import (
 type AdminHandler struct {
 	DB          *gorm.DB
 	ConfigCache *services.ConfigCache
+	// Store invalidates a user's sessions on force re-reg / lock.
+	Store *auth.Store
 }
 
 // GetConfig returns all dynamic flags.
@@ -143,12 +146,6 @@ func (h *AdminHandler) PatchUser(c *gin.Context) {
 	}
 	if req.ForceReRegister != nil {
 		updates["force_re_reg"] = *req.ForceReRegister
-		if *req.ForceReRegister {
-			if err := h.DB.Where("user_id = ?", user.ID).Delete(&models.Credential{}).Error; err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "could not clear credentials"})
-				return
-			}
-		}
 	}
 	if req.Role != nil {
 		switch *req.Role {
@@ -193,12 +190,48 @@ func (h *AdminHandler) PatchUser(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "no updates"})
 		return
 	}
-	if err := h.DB.Model(&user).Updates(updates).Error; err != nil {
+	err := h.DB.Transaction(func(tx *gorm.DB) error {
+		if req.ForceReRegister != nil && *req.ForceReRegister {
+			if err := tx.Where("user_id = ?", user.ID).Delete(&models.Credential{}).Error; err != nil {
+				return err
+			}
+		}
+		return tx.Model(&user).Updates(updates).Error
+	})
+	if err != nil {
+		if req.ForceReRegister != nil && *req.ForceReRegister {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "could not clear credentials"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "update failed"})
 		return
 	}
+
+	// Locking an account or wiping its passkeys must end its sessions now,
+	// not when the 30-day cookie happens to expire.
+	if (req.IsActive != nil && !*req.IsActive) || (req.ForceReRegister != nil && *req.ForceReRegister) {
+		h.invalidateUserSessions(user.ID)
+	}
 	h.DB.First(&user, "id = ?", id)
 	c.JSON(http.StatusOK, user)
+}
+
+// invalidateUserSessions drops every session of a user, preferring the
+// attached session store (memory + SQLite) and falling back to a direct
+// DB delete when the handler was built without a store.
+func (h *AdminHandler) invalidateUserSessions(userID string) {
+	if userID == "" {
+		return
+	}
+	if h.Store != nil {
+		h.Store.DeleteUserSessions(userID)
+		return
+	}
+	if h.DB != nil {
+		if err := h.DB.Where("user_id = ?", userID).Delete(&auth.SessionRow{}).Error; err != nil {
+			log.Printf("admin: delete user sessions failed: %v", err)
+		}
+	}
 }
 
 func adminEmailOK(s string) bool {

@@ -49,7 +49,7 @@ func New(d Deps) *gin.Engine {
 	notifier := &services.Notify{DB: d.DB, Push: d.Push}
 	healthH := &handlers.HealthHandler{DB: d.DB, Notify: notifier}
 	partnerH := &handlers.PartnerHandler{DB: d.DB, Notify: notifier}
-	adminH := &handlers.AdminHandler{DB: d.DB, ConfigCache: d.ConfigCache}
+	adminH := &handlers.AdminHandler{DB: d.DB, ConfigCache: d.ConfigCache, Store: d.Store}
 	tagsH := &handlers.TagsHandler{DB: d.DB}
 	notifH := &handlers.NotificationHandler{DB: d.DB}
 	pushH := &handlers.PushHandler{Push: d.Push}

@@ -207,6 +207,28 @@ func (s *Store) DeleteAppSession(token string) {
 	}
 }
 
+// DeleteUserSessions logs out every session of a user. Used when an admin
+// forces passkey re-registration or locks an account — those actions must
+// not leave old sessions valid for up to 30 days.
+func (s *Store) DeleteUserSessions(userID string) {
+	if userID == "" {
+		return
+	}
+	s.mu.Lock()
+	for tok, as := range s.app {
+		if as.UserID == userID {
+			delete(s.app, tok)
+		}
+	}
+	db := s.db
+	s.mu.Unlock()
+	if db != nil {
+		if err := db.Where("user_id = ?", userID).Delete(&SessionRow{}).Error; err != nil {
+			log.Printf("session: delete user sessions failed: %v", err)
+		}
+	}
+}
+
 func (s *Store) purgeExpired() {
 	s.mu.RLock()
 	db := s.db
