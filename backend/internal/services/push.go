@@ -2,6 +2,8 @@ package services
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -140,6 +142,8 @@ func (p *Push) sendOne(sub models.PushSubscription, body []byte) {
 }
 
 // UpsertSubscription stores or updates a browser push subscription for a user.
+// An endpoint already owned by a different user is rejected — endpoints are
+// secrets, and silently reassigning them would hijack another user's push.
 func (p *Push) UpsertSubscription(userID, endpoint, p256dh, auth, ua string) error {
 	if p == nil || p.DB == nil {
 		return gorm.ErrInvalidDB
@@ -155,13 +159,18 @@ func (p *Push) UpsertSubscription(userID, endpoint, p256dh, auth, ua string) err
 	var existing models.PushSubscription
 	err := p.DB.Where("endpoint = ?", endpoint).First(&existing).Error
 	if err == nil {
+		if existing.UserID != userID {
+			return fmt.Errorf("endpoint is already subscribed by another user")
+		}
 		return p.DB.Model(&existing).Updates(map[string]interface{}{
-			"user_id":    userID,
 			"p256dh":     p256dh,
 			"auth":       auth,
 			"user_agent": ua,
 			"updated_at": time.Now().UTC(),
 		}).Error
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
 	}
 	row.CreatedAt = time.Now().UTC()
 	return p.DB.Create(&row).Error
