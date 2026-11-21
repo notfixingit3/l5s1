@@ -6,10 +6,13 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/). Versions fol
 
 ## [Unreleased]
 
+## [0.0.1-beta.35] — 2026-11-20
+
 ### Docs
-- Added a proprietary, all-rights-reserved `LICENSE` at the repo root (modeled on Ticksmith's): l5s1 is proprietary software of Mackie Family Co. LLC, SteadyHarden is its trade name, and third-party components keep their own licenses. The README License sections (`README.md`, `README.dev.md`) now say proprietary/all rights reserved and point to `LICENSE` instead of "TBD"; `README.main.md` gets a matching License section; `frontend/package.json` gains `"license": "UNLICENSED"`. No version bump (docs/metadata only), no image/repo paths or deploy files changed.
-- Present l5s1 as part of SteadyHarden, a trade name of Mackie Family Co. LLC.: ownership line added to `README.md`, `README.dev.md`, `README.main.md`, and `docs/ARCHITECTURE.md`. The app footer now reads "l5s1 is part of SteadyHarden, a trade name of Mackie Family Co. LLC." (replacing "A SteadyHarden product") followed by "Copyright © 2026 Mackie Family Co. LLC"; service worker cache bumped to `l5s1-v27-steadyharden-branding` so clients pick up the new HTML.
-- Copyright holder set to Mackie Family Co. LLC (2026) in the README License section and the app footer. (Superseded by the proprietary LICENSE entry below.) No version bump, no image/repo paths or deploy files changed.
+- Presented l5s1 as part of SteadyHarden, a trade name of Mackie Family Co. LLC.: ownership line added to `README.md`, `README.dev.md`, `README.main.md`, and `docs/ARCHITECTURE.md`. The app footer now reads "l5s1 is part of SteadyHarden, a trade name of Mackie Family Co. LLC." (replacing "A SteadyHarden product") followed by "Copyright © 2026 Mackie Family Co. LLC"; service worker cache bumped to `l5s1-v27-steadyharden-branding` so clients pick up the new HTML.
+- Copyright holder set to Mackie Family Co. LLC (2026) in the README License section and the app footer.
+- Added a proprietary, all-rights-reserved `LICENSE` at the repo root: l5s1 is proprietary software of Mackie Family Co. LLC, SteadyHarden is its trade name, and third-party components keep their own licenses. The README License sections (`README.md`, `README.dev.md`) now say proprietary/all rights reserved and point to `LICENSE` instead of "TBD"; `README.main.md` gets a matching License section; `frontend/package.json` gains `"license": "UNLICENSED"`.
+- No functional, image/repo path, or deploy file changes.
 
 ## [0.0.1-beta.34] — 2026-11-20
 
