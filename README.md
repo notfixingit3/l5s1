@@ -118,4 +118,4 @@ Copyright (c) 2026 Mackie Family Co. LLC
 
 l5s1 is part of SteadyHarden, a trade name of Mackie Family Co. LLC.
 
-TBD — all rights reserved until a license is chosen.
+l5s1 is proprietary software. All rights reserved. See [LICENSE](LICENSE).

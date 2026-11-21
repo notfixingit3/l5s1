@@ -59,3 +59,7 @@ Full docs: [`dev` branch README](https://github.com/notfixingit3/l5s1/blob/dev/R
 ## Status
 
 Pre-release / beta. APIs and schema may change until `v0.1.0`.
+
+## License
+
+l5s1 is proprietary software of Mackie Family Co. LLC (SteadyHarden is its trade name). All rights reserved. See [LICENSE](https://github.com/notfixingit3/l5s1/blob/dev/LICENSE).
