@@ -330,8 +330,8 @@ func (h *AdminHandler) PatchInvite(c *gin.Context) {
 		return
 	}
 	var req struct {
-		IsActive *bool `json:"is_active"`
-		MaxUses  *int  `json:"max_uses"`
+		IsActive *bool   `json:"is_active"`
+		MaxUses  *int    `json:"max_uses"`
 		Label    *string `json:"label"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -580,9 +580,9 @@ func (h *AdminHandler) DeleteTag(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
-		"status":          "deleted",
-		"replaced_with":   replaceKey,
-		"logs_rewritten":  usage,
+		"status":         "deleted",
+		"replaced_with":  replaceKey,
+		"logs_rewritten": usage,
 	})
 }
 

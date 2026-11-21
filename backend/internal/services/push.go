@@ -15,11 +15,11 @@ import (
 
 // Push delivers Web Push notifications to subscribed browsers.
 type Push struct {
-	DB            *gorm.DB
-	VAPIDPublic   string
-	VAPIDPrivate  string
-	VAPIDSubject  string // mailto: or https:// contact
-	Enabled       bool
+	DB           *gorm.DB
+	VAPIDPublic  string
+	VAPIDPrivate string
+	VAPIDSubject string // mailto: or https:// contact
+	Enabled      bool
 }
 
 // NewPush loads VAPID from env or AppConfig; generates and persists keys if missing.

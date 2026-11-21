@@ -706,8 +706,8 @@ func devicesJSON(creds []models.Credential, currentCredHex string) []gin.H {
 			"id":          idHex,
 			"device_type": label,
 			// use_count is the reliable "times signed in" counter for the UI
-			"use_count":  cr.UseCount,
-			"sign_count": cr.SignCount, // authenticator counter (often 0 for synced passkeys)
+			"use_count":    cr.UseCount,
+			"sign_count":   cr.SignCount, // authenticator counter (often 0 for synced passkeys)
 			"last_used_at": cr.LastUsedAt,
 			"created_at":   cr.CreatedAt,
 			"is_current":   currentCredHex != "" && idHex == currentCredHex,
