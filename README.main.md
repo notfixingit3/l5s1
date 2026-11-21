@@ -2,6 +2,8 @@
 
 **Live:** [https://l5s1.com](https://l5s1.com)
 
+*l5s1 is part of SteadyHarden, a trade name of Mackie Family Co. LLC.*
+
 Passwordless multi-condition health tracking (PWA) — WebAuthn passkeys, partner observation, clinician summary, admin invites/tags.
 
 Built for people managing overlapping conditions (e.g. stenosis, UC, blood pressure, glucose) who want a **low-friction private log** without passwords.

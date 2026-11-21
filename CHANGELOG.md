@@ -4,6 +4,11 @@ All notable changes to L5S1 are documented here.
 
 Format inspired by [Keep a Changelog](https://keepachangelog.com/). Versions follow pre-release semver: `v0.0.1-beta.N`.
 
+## [Unreleased]
+
+### Docs
+- Present l5s1 as part of SteadyHarden, a trade name of Mackie Family Co. LLC.: ownership line added to `README.md`, `README.dev.md`, `README.main.md`, and `docs/ARCHITECTURE.md`; "A SteadyHarden product" added to the app footer. No version bump, no change to copyright/LICENSE, image/repo paths, or deploy files.
+
 ## [0.0.1-beta.34] — 2026-11-20
 
 ### Security

@@ -15,6 +15,8 @@
 
 ## About
 
+**l5s1 is part of SteadyHarden, a trade name of Mackie Family Co. LLC.**
+
 L5S1 is a **passwordless progressive web app** for multi-condition health tracking. It is designed for people managing overlapping issues (lumbar stenosis / L5–S1 focus, IBD flares, blood pressure, glucose, and similar) who want a **private, low-friction log** they can use daily and share selectively with a care partner or clinician.
 
 | | |
@@ -111,5 +113,7 @@ When ready: bump `VERSION` / `CHANGELOG.md`, commit,
 Support development via [GitHub Sponsors](https://github.com/sponsors/notfixingit3).
 
 ## License
+
+l5s1 is part of SteadyHarden, a trade name of Mackie Family Co. LLC.
 
 TBD — all rights reserved until a license is chosen.

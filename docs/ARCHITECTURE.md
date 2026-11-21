@@ -2,6 +2,8 @@
 
 ## System intent
 
+_l5s1 is part of SteadyHarden, a trade name of Mackie Family Co. LLC._
+
 Progressive Web App for multi-condition health tracking (lumbar spinal stenosis, UC, blood pressure, type 2 diabetes) with:
 
 - Ultra-low-friction mobile log entry
