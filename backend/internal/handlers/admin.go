@@ -27,8 +27,30 @@ type AdminHandler struct {
 
 // GetConfig returns all dynamic flags.
 // GET /api/admin/config
+// Secret-shaped values (VAPID private key, anything *PRIVATE*/*SECRET*/*TOKEN*)
+// are redacted — they live server-side and must not round-trip through the API.
 func (h *AdminHandler) GetConfig(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"config": h.ConfigCache.All()})
+	c.JSON(http.StatusOK, gin.H{"config": redactConfig(h.ConfigCache.All())})
+}
+
+func redactConfig(m map[string]string) map[string]string {
+	out := make(map[string]string, len(m))
+	for k, v := range m {
+		if sensitiveConfigKey(k) {
+			out[k] = "[redacted]"
+		} else {
+			out[k] = v
+		}
+	}
+	return out
+}
+
+func sensitiveConfigKey(k string) bool {
+	u := strings.ToUpper(k)
+	return strings.Contains(u, "PRIVATE") ||
+		strings.Contains(u, "SECRET") ||
+		strings.Contains(u, "TOKEN") ||
+		strings.Contains(u, "PASSWORD")
 }
 
 // PutConfig updates one or more flags (e.g. ALLOW_SIGNUPS).
