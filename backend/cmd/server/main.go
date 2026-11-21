@@ -21,9 +21,13 @@ func main() {
 	if err != nil {
 		log.Fatalf("database: %v", err)
 	}
-	if err := database.SeedDefaults(db, cfg.SeedAdminEmail); err != nil {
+	if err := database.SeedDefaults(db, cfg.SeedAdminEmail, database.SeedOptions{
+		DemoAccounts: cfg.SeedDemoAccounts,
+		AllowSignups: cfg.AllowSignupsInitial,
+	}); err != nil {
 		log.Fatalf("seed: %v", err)
 	}
+	database.WarnUnprotectedAdmins(db)
 
 	cache, err := services.NewConfigCache(db)
 	if err != nil {

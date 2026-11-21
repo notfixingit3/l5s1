@@ -18,6 +18,10 @@ x-app-environment: &app-environment
   WEBAUTHN_ORIGINS: http://localhost:8080
   WEBAUTHN_RP_DISPLAY_NAME: L5S1 Health Registry
   SEED_ADMIN_USERNAME: admin
+  # Local dev only: allow binding the seeded admin/demo shells' first passkey,
+  # and seed the tom/jess demo accounts. Hosted deploys leave both off.
+  ALLOW_SIGNUPS: "true"
+  SEED_DEMO_ACCOUNTS: "true"
   SECURE_COOKIE: "false"
 
 services:

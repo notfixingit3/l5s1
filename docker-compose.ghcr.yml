@@ -20,6 +20,9 @@ services:
       SEED_ADMIN_USERNAME: admin
       SECURE_COOKIE: "false"
       GIN_MODE: release
+      # Local dev defaults (same as docker-compose.yml)
+      ALLOW_SIGNUPS: "true"
+      SEED_DEMO_ACCOUNTS: "true"
     volumes:
       - ./data:/data
     restart: unless-stopped

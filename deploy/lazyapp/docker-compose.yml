@@ -21,6 +21,11 @@ services:
       SEED_ADMIN_USERNAME: ${SEED_ADMIN_USERNAME:-admin}
       SECURE_COOKIE: ${SECURE_COOKIE:-true}
       GIN_MODE: release
+      # ALLOW_SIGNUPS gates claiming zero-credential account shells; default
+      # off for hosted — bind the admin passkey by enabling it temporarily.
+      # Brand-new accounts always need an admin invite either way.
+      ALLOW_SIGNUPS: ${ALLOW_SIGNUPS:-false}
+      # Never seed demo accounts on a hosted instance.
       # Web Push (optional — if unset, app generates VAPID keys into SQLite app_configs)
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}

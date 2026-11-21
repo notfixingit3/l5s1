@@ -17,9 +17,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestAllowSignupsToggleBlocksRegistration(t *testing.T) {
+func TestAllowSignupsToggleBlocksShellClaim(t *testing.T) {
 	db := openTestDB(t)
-	require.NoError(t, database.SeedDefaults(db, ""))
+	require.NoError(t, database.SeedDefaults(db, "", database.SeedOptions{AllowSignups: true}))
 	cache, err := services.NewConfigCache(db)
 	require.NoError(t, err)
 
@@ -44,17 +44,46 @@ func TestAllowSignupsToggleBlocksRegistration(t *testing.T) {
 	r := gin.New()
 	r.POST("/api/auth/register/begin", h.RegisterBegin)
 
+	// Brand-new account without an invite → rejected by the invite gate.
 	body := bytes.NewBufferString(`{"username":"newuser","email":"newuser@example.com","display_name":"New User","invite_code":"12345678","device_type":"iPhone"}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/auth/register/begin", body)
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
-
 	require.Equal(t, http.StatusForbidden, w.Code)
-	require.Contains(t, w.Body.String(), "signups are disabled")
+	require.Contains(t, w.Body.String(), "invalid invite code")
 
+	// A valid invite always works — invites are the admin-approved path,
+	// independent of the ALLOW_SIGNUPS flag.
+	inv := models.InviteCode{Code: "55667788", MaxUses: 1, IsActive: true}
+	require.NoError(t, db.Create(&inv).Error)
+	bodyOK := bytes.NewBufferString(`{"username":"invited","email":"invited@example.com","display_name":"Invited","invite_code":"55667788","device_type":"iPhone"}`)
+	reqOK := httptest.NewRequest(http.MethodPost, "/api/auth/register/begin", bodyOK)
+	reqOK.Header.Set("Content-Type", "application/json")
+	wOK := httptest.NewRecorder()
+	r.ServeHTTP(wOK, reqOK)
+	require.Equal(t, http.StatusOK, wOK.Code)
+
+	// Zero-credential shell (e.g. seeded admin) cannot be claimed while
+	// signups are disabled.
+	shell := models.User{Username: "shell", Email: "", DisplayName: "Shell", Role: models.RolePatient, IsActive: true}
+	require.NoError(t, db.Create(&shell).Error)
+	bodyShell := bytes.NewBufferString(`{"username":"shell","device_type":"Mac"}`)
+	reqShell := httptest.NewRequest(http.MethodPost, "/api/auth/register/begin", bodyShell)
+	reqShell.Header.Set("Content-Type", "application/json")
+	wShell := httptest.NewRecorder()
+	r.ServeHTTP(wShell, reqShell)
+	require.Equal(t, http.StatusForbidden, wShell.Code)
+	require.Contains(t, wShell.Body.String(), "signups are disabled")
+
+	// Same shell becomes claimable once signups are enabled again.
 	require.NoError(t, cache.Set(models.ConfigAllowSignups, "true"))
-	require.True(t, cache.AllowSignups())
+	bodyShell2 := bytes.NewBufferString(`{"username":"shell","device_type":"Mac"}`)
+	reqShell2 := httptest.NewRequest(http.MethodPost, "/api/auth/register/begin", bodyShell2)
+	reqShell2.Header.Set("Content-Type", "application/json")
+	wShell2 := httptest.NewRecorder()
+	r.ServeHTTP(wShell2, reqShell2)
+	require.Equal(t, http.StatusOK, wShell2.Code)
 }
 
 func TestAdminRevokeDevicePasskey(t *testing.T) {
@@ -139,7 +168,7 @@ func TestDeactivateUser(t *testing.T) {
 
 func TestAdminConfigPutViaHTTP(t *testing.T) {
 	db := openTestDB(t)
-	require.NoError(t, database.SeedDefaults(db, ""))
+	require.NoError(t, database.SeedDefaults(db, "", database.SeedOptions{AllowSignups: true}))
 	cache, err := services.NewConfigCache(db)
 	require.NoError(t, err)
 
@@ -196,7 +225,7 @@ func TestWebAuthnInitSucceeds(t *testing.T) {
 
 func TestInviteCodeGatesSignup(t *testing.T) {
 	db := openTestDB(t)
-	require.NoError(t, database.SeedDefaults(db, ""))
+	require.NoError(t, database.SeedDefaults(db, "", database.SeedOptions{AllowSignups: true}))
 	cache, err := services.NewConfigCache(db)
 	require.NoError(t, err)
 
