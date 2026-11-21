@@ -8,11 +8,11 @@ Passwordless multi-condition health PWA: WebAuthn passkeys, patient logs, partne
 
 | Layer | Stack |
 |-------|--------|
-| API | Go, Gin, GORM |
+| API | Go 1.27.x, Gin, GORM |
 | DB | SQLite (pure Go `glebarez/sqlite`) locally; Postgres later optional |
 | Auth | `go-webauthn/webauthn` only — **no passwords** |
-| Frontend | Vanilla SPA under `frontend/` (no heavy framework) |
-| Images | Multi-arch Docker → GHCR `ghcr.io/notfixingit3/l5s1` |
+| Frontend | Vanilla SPA under `frontend/` (no heavy framework); Node 24 for lint only |
+| Images | Multi-arch Docker → GHCR `ghcr.io/notfixingit3/l5s1`; runtime `debian:trixie-slim`, non-root `l5s1` user |
 
 Repo: **https://github.com/notfixingit3/l5s1**  
 Live: **https://l5s1.com**  
@@ -31,8 +31,8 @@ make run       # host process, same ./data
 
 | Event | CI | Container (GHCR multi-arch) |
 |-------|----|------------------------------|
-| Push to `dev` | No | No |
-| PR | No | No |
+| Push to `dev` | Yes (test, vet, gosec, govulncheck, eslint) | No |
+| PR | Yes (same) | No |
 | Tag `v*-beta.*` | Yes | Yes (parallel native amd64 + arm64) |
 | `workflow_dispatch` | Yes | Yes |
 
@@ -41,7 +41,7 @@ Dockerfile skips `go test` (CI / `make test` cover that). Expect ~3–6 min vs ~
 
 When ready to release:
 
-1. Bump `VERSION` (e.g. `0.0.1-beta.33`)
+1. Bump `VERSION` (e.g. `0.0.1-beta.34`)
 2. Update `CHANGELOG.md`, defaults in `Dockerfile` / `version.go` / docs as needed
 3. Commit on `dev`
 4. `git tag -a v0.0.1-beta.N -m "…" && git push origin dev && git push origin v0.0.1-beta.N`
@@ -51,9 +51,9 @@ Image tags published on beta cut: `v0.0.1-beta.N`, `latest`, `dev` (alias of new
 
 ## Version display
 
-- Product version = clean string from `VERSION` / tag (e.g. `0.0.1-beta.33`)
+- Product version = clean string from `VERSION` / tag (e.g. `0.0.1-beta.34`)
 - Commit stamped **separately** via ldflags / `version.js`
-- Display: `v0.0.1-beta.33` or `v0.0.1-beta.33+abc1234`
+- Display: `v0.0.1-beta.34` or `v0.0.1-beta.34+abc1234`
 - **Never** bake `-g{sha}` into the version string *and* append `+{sha}` (doubled hash)
 
 ## WebAuthn / passkeys (critical)
@@ -112,7 +112,7 @@ docker compose pull && docker compose up -d
 
 - Never commit `./data` or `*.db`
 - `make data-backup` / `make data-reset` (reset requires typing `YES`)
-- Seeded shells (admin / demo users) may exist without passkeys — first bind via Create account where allowed
+- Seeded shells (admin, demo users) may exist without passkeys. `ALLOW_SIGNUPS` (default **off**) gates claiming them via Create account; demo seeding needs `SEED_DEMO_ACCOUNTS=true` (dev only). Hosted bootstrap: enable `ALLOW_SIGNUPS` briefly to bind the admin passkey, then disable — see `deploy/lazyapp/README.md`
 
 ## Layout (short)
 

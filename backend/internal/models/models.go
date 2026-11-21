@@ -28,8 +28,8 @@ type User struct {
 	// General pack is always on and not stored here. Empty = general only.
 	EnabledPacks string `gorm:"not null;default:'stenosis'" json:"enabled_packs"`
 	// LastVisitAt is the patient's last clinician visit (for Summary “since last visit”).
-	LastVisitAt *time.Time `json:"last_visit_at,omitempty"`
-	CreatedAt   time.Time  `json:"created_at"`
+	LastVisitAt   *time.Time      `json:"last_visit_at,omitempty"`
+	CreatedAt     time.Time       `json:"created_at"`
 	Credentials   []Credential    `gorm:"foreignKey:UserID" json:"credentials,omitempty"`
 	PartnerAccess []PartnerAccess `gorm:"foreignKey:PatientID" json:"partner_access,omitempty"`
 }
@@ -56,22 +56,22 @@ func (u *User) BeforeCreate(tx *gorm.DB) error {
 // Credential stores multi-device WebAuthn passkeys for a user.
 // Flags (especially BackupEligible) must round-trip exactly or login validation fails.
 type Credential struct {
-	ID             []byte     `gorm:"primaryKey" json:"id"`
-	UserID         string     `gorm:"index;not null" json:"user_id"`
-	PublicKey      []byte     `gorm:"not null" json:"-"`
-	Attestation    string     `json:"attestation,omitempty"`
+	ID          []byte `gorm:"primaryKey" json:"id"`
+	UserID      string `gorm:"index;not null" json:"user_id"`
+	PublicKey   []byte `gorm:"not null" json:"-"`
+	Attestation string `json:"attestation,omitempty"`
 	// SignCount is the authenticator counter (often stays 0 for synced passkeys / Bitwarden).
 	SignCount uint32 `json:"sign_count"`
 	// UseCount is our own successful-auth count (always increments on login).
-	UseCount   uint32     `gorm:"default:0" json:"use_count"`
-	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
-	DeviceType string     `json:"device_type"` // friendly label, e.g. "Neo's Mac"
-	AAGUID         []byte    `json:"-"`
-	UserPresent    bool      `json:"user_present"`
-	UserVerified   bool      `json:"user_verified"`
-	BackupEligible bool      `json:"backup_eligible"` // MUST be stable for life of credential
-	BackupState    bool      `json:"backup_state"`
-	CreatedAt      time.Time `json:"created_at"`
+	UseCount       uint32     `gorm:"default:0" json:"use_count"`
+	LastUsedAt     *time.Time `json:"last_used_at,omitempty"`
+	DeviceType     string     `json:"device_type"` // friendly label, e.g. "Neo's Mac"
+	AAGUID         []byte     `json:"-"`
+	UserPresent    bool       `json:"user_present"`
+	UserVerified   bool       `json:"user_verified"`
+	BackupEligible bool       `json:"backup_eligible"` // MUST be stable for life of credential
+	BackupState    bool       `json:"backup_state"`
+	CreatedAt      time.Time  `json:"created_at"`
 }
 
 // CredentialIDHex returns a hex encoding for admin APIs / URL params.
@@ -106,14 +106,14 @@ func (p *PartnerAccess) BeforeCreate(tx *gorm.DB) error {
 
 // HealthLog records primary telemetry metrics for a patient.
 type HealthLog struct {
-	ID         uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
-	UserID     string    `gorm:"index;not null" json:"user_id"`   // patient subject
-	AuthorID   string    `gorm:"not null" json:"author_id"`       // patient or partner who entered
-	PainLevel  int       `gorm:"type:smallint" json:"pain_level"` // 1-10
-	ShortNotes string    `gorm:"type:text" json:"short_notes"`
-	Tags       string    `gorm:"type:varchar(255)" json:"tags"` // CSV/JSON: "uc-flare,bp-high"
-	IsObservation bool   `gorm:"default:false" json:"is_observation"` // partner doctor notes
-	CreatedAt  time.Time `gorm:"index" json:"created_at"`
+	ID            uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
+	UserID        string    `gorm:"index;not null" json:"user_id"`   // patient subject
+	AuthorID      string    `gorm:"not null" json:"author_id"`       // patient or partner who entered
+	PainLevel     int       `gorm:"type:smallint" json:"pain_level"` // 1-10
+	ShortNotes    string    `gorm:"type:text" json:"short_notes"`
+	Tags          string    `gorm:"type:varchar(255)" json:"tags"`       // CSV/JSON: "uc-flare,bp-high"
+	IsObservation bool      `gorm:"default:false" json:"is_observation"` // partner doctor notes
+	CreatedAt     time.Time `gorm:"index" json:"created_at"`
 }
 
 // Notification kinds for in-app alerts (patient ↔ partner).
@@ -125,17 +125,17 @@ const (
 
 // Notification is an in-app alert for a user.
 type Notification struct {
-	ID         string     `gorm:"primaryKey;type:uuid" json:"id"`
-	UserID     string     `gorm:"index;not null" json:"user_id"` // recipient
-	ActorID    string     `gorm:"index" json:"actor_id,omitempty"`
-	Kind       string     `gorm:"index;size:40;not null" json:"kind"`
-	Title      string     `gorm:"not null" json:"title"`
-	Body       string     `gorm:"type:text" json:"body"`
+	ID      string `gorm:"primaryKey;type:uuid" json:"id"`
+	UserID  string `gorm:"index;not null" json:"user_id"` // recipient
+	ActorID string `gorm:"index" json:"actor_id,omitempty"`
+	Kind    string `gorm:"index;size:40;not null" json:"kind"`
+	Title   string `gorm:"not null" json:"title"`
+	Body    string `gorm:"type:text" json:"body"`
 	// Optional deep-link context
-	PatientID  string     `gorm:"index" json:"patient_id,omitempty"`
-	LogID      uint64     `json:"log_id,omitempty"`
-	ReadAt     *time.Time `json:"read_at,omitempty"`
-	CreatedAt  time.Time  `gorm:"index" json:"created_at"`
+	PatientID string     `gorm:"index" json:"patient_id,omitempty"`
+	LogID     uint64     `json:"log_id,omitempty"`
+	ReadAt    *time.Time `json:"read_at,omitempty"`
+	CreatedAt time.Time  `gorm:"index" json:"created_at"`
 }
 
 func (n *Notification) BeforeCreate(tx *gorm.DB) error {
@@ -179,8 +179,8 @@ type AppConfig struct {
 
 // Config keys
 const (
-	ConfigAllowSignups     = "ALLOW_SIGNUPS"
-	ConfigTagOrderVersion  = "TAG_ORDER_VERSION"
+	ConfigAllowSignups    = "ALLOW_SIGNUPS"
+	ConfigTagOrderVersion = "TAG_ORDER_VERSION"
 )
 
 // RecommendedTagOrderVersion bumps when default fast-entry tag order changes.

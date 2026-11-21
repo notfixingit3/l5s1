@@ -282,11 +282,13 @@ func backfillUserIdentity(db *gorm.DB) error {
 }
 
 // purgeIncompleteCredentials removes passkeys that predate full flag storage.
+// Failures are surfaced (not fatal) so a broken query never silently skips
+// the one-shot cleanup or masks a deeper schema problem.
 func purgeIncompleteCredentials(db *gorm.DB) error {
 	res := db.Where("sign_count = ? AND (backup_eligible = ? OR backup_eligible IS NULL)", 0, false).
 		Delete(&models.Credential{})
 	if res.Error != nil {
-		return nil
+		return fmt.Errorf("purge incomplete credentials: %w", res.Error)
 	}
 	if res.RowsAffected > 0 {
 		log.Printf("database: removed %d incomplete passkey(s); re-register via Create account", res.RowsAffected)
@@ -294,8 +296,25 @@ func purgeIncompleteCredentials(db *gorm.DB) error {
 	return nil
 }
 
-// SeedDefaults inserts baseline config, admin shell, and demo patient/partner accounts.
-func SeedDefaults(db *gorm.DB, adminUsername string) error {
+// SeedOptions controls first-boot seeding.
+type SeedOptions struct {
+	// DemoAccounts seeds the tom/jess demo patient/partner shells.
+	// Local dev only — never enable on a hosted instance.
+	DemoAccounts bool
+	// AllowSignups is the initial value of the ALLOW_SIGNUPS flag: whether a
+	// zero-credential account shell (seeded admin, pre-created account) may be
+	// claimed through Create account. Brand-new accounts always need an invite.
+	AllowSignups bool
+}
+
+// SeedDefaults inserts baseline config, the admin shell, and (optionally)
+// demo patient/partner accounts. Demo seeding stays off unless explicitly
+// enabled with SeedOptions.DemoAccounts.
+func SeedDefaults(db *gorm.DB, adminUsername string, opts SeedOptions) error {
+	allowSignups := "false"
+	if opts.AllowSignups {
+		allowSignups = "true"
+	}
 	var count int64
 	if err := db.Model(&models.AppConfig{}).Where("key = ?", models.ConfigAllowSignups).Count(&count).Error; err != nil {
 		return err
@@ -303,7 +322,7 @@ func SeedDefaults(db *gorm.DB, adminUsername string) error {
 	if count == 0 {
 		if err := db.Create(&models.AppConfig{
 			Key:   models.ConfigAllowSignups,
-			Value: "true",
+			Value: allowSignups,
 		}).Error; err != nil {
 			return err
 		}
@@ -314,12 +333,33 @@ func SeedDefaults(db *gorm.DB, adminUsername string) error {
 			return err
 		}
 	}
-	if err := seedDemoAccounts(db); err != nil {
-		return err
+	if opts.DemoAccounts {
+		if err := seedDemoAccounts(db); err != nil {
+			return err
+		}
 	}
 	// Accidental test account from early signup placeholder — drop if unused
 	cleanupOrphanTestUsers(db)
 	return nil
+}
+
+// WarnUnprotectedAdmins logs a startup warning for admin accounts with no
+// passkey bound. While ALLOW_SIGNUPS is on, such shells are claimable by
+// whoever tries the username first — bind a passkey immediately.
+func WarnUnprotectedAdmins(db *gorm.DB) {
+	var admins []models.User
+	if err := db.Where("role = ?", models.RoleAdmin).Find(&admins).Error; err != nil {
+		return
+	}
+	for _, a := range admins {
+		var n int64
+		if err := db.Model(&models.Credential{}).Where("user_id = ?", a.ID).Count(&n).Error; err != nil {
+			continue
+		}
+		if n == 0 {
+			log.Printf("security: admin %q has no passkey — bind one via Create account (enable ALLOW_SIGNUPS first if it is off)", a.Username)
+		}
+	}
 }
 
 func seedAdmin(db *gorm.DB, adminUsername string) error {

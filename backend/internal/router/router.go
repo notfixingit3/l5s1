@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -26,13 +27,16 @@ type Deps struct {
 	CookieName   string
 	SecureCookie bool
 	FrontendDir  string
+	// AllowedOrigins is the CORS allowlist — normally the WebAuthn RP origins.
+	AllowedOrigins []string
 }
 
 // New builds the Gin engine with all L5S1 routes.
 func New(d Deps) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Logger(), gin.Recovery())
-	r.Use(corsMiddleware())
+	r.Use(securityHeaders())
+	r.Use(corsMiddleware(d.AllowedOrigins))
 
 	// 12 failed code guesses / 15 min per key — enough for typos, hard for brute force
 	codeLimiter := codes.NewAttemptLimiter(12, 15*time.Minute)
@@ -49,7 +53,7 @@ func New(d Deps) *gin.Engine {
 	notifier := &services.Notify{DB: d.DB, Push: d.Push}
 	healthH := &handlers.HealthHandler{DB: d.DB, Notify: notifier}
 	partnerH := &handlers.PartnerHandler{DB: d.DB, Notify: notifier}
-	adminH := &handlers.AdminHandler{DB: d.DB, ConfigCache: d.ConfigCache}
+	adminH := &handlers.AdminHandler{DB: d.DB, ConfigCache: d.ConfigCache, Store: d.Store}
 	tagsH := &handlers.TagsHandler{DB: d.DB}
 	notifH := &handlers.NotificationHandler{DB: d.DB}
 	pushH := &handlers.PushHandler{Push: d.Push}
@@ -194,20 +198,48 @@ func New(d Deps) *gin.Engine {
 	return r
 }
 
-func corsMiddleware() gin.HandlerFunc {
+// corsMiddleware allows cross-origin requests only from configured origins
+// (the WebAuthn RP origins). Unknown origins get no CORS headers, so the
+// browser blocks the response; same-origin requests (no Origin header)
+// pass through untouched.
+func corsMiddleware(allowed []string) gin.HandlerFunc {
+	set := make(map[string]struct{}, len(allowed))
+	for _, o := range allowed {
+		o = strings.TrimSpace(o)
+		if o != "" {
+			set[o] = struct{}{}
+		}
+	}
 	return func(c *gin.Context) {
 		origin := c.GetHeader("Origin")
-		if origin == "" {
-			origin = "*"
+		if origin != "" {
+			if _, ok := set[origin]; ok {
+				c.Header("Access-Control-Allow-Origin", origin)
+				c.Header("Vary", "Origin")
+				c.Header("Access-Control-Allow-Credentials", "true")
+				c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+				c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+			}
+			if c.Request.Method == http.MethodOptions {
+				c.AbortWithStatus(http.StatusNoContent)
+				return
+			}
 		}
-		c.Header("Access-Control-Allow-Origin", origin)
-		c.Header("Access-Control-Allow-Credentials", "true")
-		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-		if c.Request.Method == http.MethodOptions {
-			c.AbortWithStatus(http.StatusNoContent)
-			return
-		}
+		c.Next()
+	}
+}
+
+// securityHeaders sets baseline hardening headers on every response.
+func securityHeaders() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Header("X-Content-Type-Options", "nosniff")
+		c.Header("X-Frame-Options", "DENY")
+		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
+		// script-src 'self' requires no inline JS — the service worker
+		// registration lives in /js/register-sw.js.
+		c.Header("Content-Security-Policy",
+			"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "+
+				"img-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self'")
 		c.Next()
 	}
 }

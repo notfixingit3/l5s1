@@ -136,9 +136,9 @@ func TestSummaryPackFilterHeart(t *testing.T) {
 	require.Equal(t, http.StatusOK, w.Code)
 
 	var body struct {
-		Count           int    `json:"count"`
-		PackFilter      string `json:"pack_filter"`
-		PackFilterLabel string `json:"pack_filter_label"`
+		Count           int            `json:"count"`
+		PackFilter      string         `json:"pack_filter"`
+		PackFilterLabel string         `json:"pack_filter_label"`
 		TagCounts       map[string]int `json:"tag_counts"`
 		PackFilters     []struct {
 			Key string `json:"key"`

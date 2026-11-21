@@ -7,19 +7,19 @@ VERSION := $(shell tr -d '[:space:]' < VERSION 2>/dev/null || echo 0.0.0-dev)
 
 up: ## Build & start Docker stack (passkeys persist in ./data)
 	mkdir -p data
-	docker compose build --build-arg VERSION=$(VERSION) --build-arg COMMIT=local --build-arg BUILD_TIME=$$(date -u +%Y-%m-%dT%H:%M:%SZ)
+	docker compose build --build-arg VERSION=$(VERSION) --build-arg COMMIT=local --build-arg BUILD_TIME=$$(date -u +%Y-%m-%dT%H:%M:%SZ) --build-arg APP_UID=$$(id -u)
 	docker compose up -d
 	@echo "Open http://localhost:8080  (use localhost, not 127.0.0.1) · v$(VERSION)"
 
-pull-ghcr: ## Run published image (IMAGE_TAG=v0.0.1-beta.33)
+pull-ghcr: ## Run published image (IMAGE_TAG=v0.0.1-beta.34)
 	mkdir -p data
 	docker compose -f docker-compose.ghcr.yml pull
 	docker compose -f docker-compose.ghcr.yml up -d
-	@echo "Open http://localhost:8080 · image tag $${IMAGE_TAG:-v0.0.1-beta.33}"
+	@echo "Open http://localhost:8080 · image tag $${IMAGE_TAG:-v0.0.1-beta.34}"
 
 dev: ## Start with host frontend bind-mount for UI iteration
 	mkdir -p data
-	docker compose --profile dev up --build -d app-dev
+	APP_UID=$$(id -u) docker compose --profile dev up --build -d app-dev
 	@echo "Open http://localhost:8080  (frontend live from ./frontend)"
 
 down: ## Stop containers (keeps ./data passkeys)
@@ -27,7 +27,8 @@ down: ## Stop containers (keeps ./data passkeys)
 
 rebuild: ## Rebuild image without wiping data
 	mkdir -p data
-	docker compose up --build -d
+	docker compose build --build-arg APP_UID=$$(id -u)
+	docker compose up -d
 
 logs: ## Tail app logs
 	docker compose logs -f app
@@ -67,5 +68,5 @@ gosec: ## gosec static analysis
 govulncheck: ## govulncheck dependency CVEs
 	cd backend && govulncheck ./...
 
-lint-fe: ## ESLint + security plugin on frontend JS
-	cd frontend && npm install --no-save eslint eslint-plugin-security >/dev/null 2>&1 && npx eslint js/
+lint-fe: ## ESLint + security plugin on frontend JS (pinned via package-lock)
+	cd frontend && npm ci --silent && npx eslint js/

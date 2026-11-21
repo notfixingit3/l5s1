@@ -2,11 +2,11 @@
 # L5S1 — multi-stage image (pure Go SQLite, CGO-free)
 # Tests run in CI (make test), not here — keeps multi-arch image builds fast.
 
-ARG VERSION=0.0.1-beta.33
+ARG VERSION=0.0.1-beta.34
 ARG COMMIT=dev
 ARG BUILD_TIME=unknown
 
-FROM --platform=$BUILDPLATFORM golang:1.25-bookworm AS build
+FROM --platform=$BUILDPLATFORM golang:1.27.4-bookworm AS build
 ARG VERSION
 ARG COMMIT
 ARG BUILD_TIME
@@ -36,15 +36,22 @@ RUN --mount=type=cache,target=/go/pkg/mod \
         -X github.com/l5s1/health-registry/internal/version.BuildTime=${BUILD_TIME}" \
       -o /out/l5s1 ./cmd/server
 
-FROM debian:bookworm-slim
+FROM debian:trixie-slim
 ARG VERSION
 ARG COMMIT
 ARG BUILD_TIME
+# Runtime user id. On bind-mounted ./data the container must match the host
+# owner, so local builds pass --build-arg APP_UID=$(id -u) (see Makefile).
+ARG APP_UID=10001
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates curl \
  && rm -rf /var/lib/apt/lists/* \
- && mkdir -p /data /app
+ && mkdir -p /data /app \
+ && useradd --system --uid "${APP_UID}" --user-group --home-dir /app --shell /usr/sbin/nologin l5s1 \
+ && chown -R l5s1:l5s1 /data
+
+USER l5s1
 
 WORKDIR /app
 COPY --from=build /out/l5s1 /app/l5s1

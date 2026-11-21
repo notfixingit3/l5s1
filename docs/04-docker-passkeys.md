@@ -10,10 +10,30 @@ Run L5S1 in Docker for reproducible local testing **without losing registered pa
 |-------|---------|-----------------------------|-------------------------|
 | Passkeys (credential ID + public key + sign count) | `./data/l5s1.db` | Yes | Yes |
 | Users, health logs, partner grants, admin flags | `./data/l5s1.db` | Yes | Yes |
-| Logged-in browser session cookie | In-memory in process | **No** — re-login | No |
+| Logged-in browser session | `./data/l5s1.db` (`app_sessions`) + in-memory cache | Yes | Yes |
 | WebAuthn ceremony (begin→finish) | In-memory | No (seconds-lived) | No |
 
-**Passkeys are durable. Sessions are not.** After `docker compose restart`, unlock with the same passkey — you do not re-register.
+**Passkeys and sessions are durable.** After `docker compose restart`, you stay signed in; after a rebuild, unlock with the same passkey.
+
+## Container user (non-root)
+
+The image runs as a non-root `l5s1` user (uid set by the `APP_UID` build arg, default `10001`). `make up` / `make dev` pass `APP_UID=$(id -u)` so the container owns the bind-mounted `./data`. With plain `docker compose build` or a fresh host dir, chown it first:
+
+```bash
+chown -R 10001:10001 ./data   # or set APP_UID to your uid at build time
+```
+
+## First-boot flags (local vs hosted)
+
+| Env | Default | Local compose | Purpose |
+|-----|---------|---------------|---------|
+| `ALLOW_SIGNUPS` | `false` | `true` | Allow binding a zero-credential shell's first passkey via Create account |
+| `SEED_DEMO_ACCOUNTS` | `false` | `true` | Seed the tom/jess demo accounts |
+
+- Brand-new accounts always need an **invite code**, regardless of these flags.
+- A zero-credential shell (seeded admin, pre-created account) is claimable only while `ALLOW_SIGNUPS=true`.
+- Hosted bootstrap: start with `ALLOW_SIGNUPS=true`, bind the admin passkey via Create account, then set the flag to `false` (Admin → config) or restart without the env. Never enable `SEED_DEMO_ACCOUNTS` on a hosted instance.
+- At startup the server logs a warning while any admin account has no passkey bound.
 
 ## Why RPID must stay stable
 
@@ -80,4 +100,4 @@ Passkeys are **not** shared with local `localhost` registrations.
 
 ## Production note
 
-For real deploys: HTTPS, real domain as RPID, `SECURE_COOKIE=true`, and a managed volume or Postgres — not `localhost`.
+For real deploys: HTTPS, real domain as RPID, `SECURE_COOKIE=true`, `ALLOW_SIGNUPS=false` (default), demo seeding off, and a managed volume or Postgres — not `localhost`.

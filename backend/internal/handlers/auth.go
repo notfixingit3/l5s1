@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"io"
+	"log"
 	"net/http"
 	"regexp"
 	"strings"
@@ -30,6 +31,16 @@ type AuthHandler struct {
 	SecureCookie bool
 	// CodeLimiter protects invite / device-link guessing (shared).
 	CodeLimiter *codes.AttemptLimiter
+}
+
+// recordFailures marks failed attempts for the given limiter keys.
+func (h *AuthHandler) recordFailures(keys ...string) {
+	if h.CodeLimiter == nil {
+		return
+	}
+	for _, k := range keys {
+		h.CodeLimiter.Allow(k, true)
+	}
 }
 
 type registerBeginRequest struct {
@@ -108,6 +119,7 @@ func (h *AuthHandler) RegisterBegin(c *gin.Context) {
 	}
 	var req registerBeginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		h.recordFailures("register:ip:" + c.ClientIP())
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
 		return
 	}
@@ -134,6 +146,7 @@ func (h *AuthHandler) RegisterBegin(c *gin.Context) {
 	// Path A: device-link code on a new browser (not logged in) — multi-device bootstrap
 	if deviceLinkRaw != "" && (!sessOK || username != "") {
 		if !validUsername(username) {
+			h.recordFailures("register:ip:" + c.ClientIP())
 			c.JSON(http.StatusBadRequest, gin.H{"error": "username required with device code"})
 			return
 		}
@@ -156,6 +169,7 @@ func (h *AuthHandler) RegisterBegin(c *gin.Context) {
 		}
 	} else {
 		if !validUsername(username) {
+			h.recordFailures("register:ip:" + c.ClientIP())
 			c.JSON(http.StatusBadRequest, gin.H{"error": "username must be 3–32 chars: letters, numbers, . _ -"})
 			return
 		}
@@ -168,18 +182,6 @@ func (h *AuthHandler) RegisterBegin(c *gin.Context) {
 		}
 
 		if isNew {
-			if !h.ConfigCache.AllowSignups() {
-				c.JSON(http.StatusForbidden, gin.H{"error": "signups are disabled"})
-				return
-			}
-			if !validEmail(email) {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "valid email address required"})
-				return
-			}
-			if !validDisplayName(displayName) {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "display name required (max 80 characters)"})
-				return
-			}
 			// Invite required for brand-new accounts (prevents mass signups)
 			inv, invErr := consumeInvitePreview(h.DB, h.CodeLimiter, c.ClientIP(), inviteCode)
 			if invErr != nil {
@@ -192,6 +194,17 @@ func (h *AuthHandler) RegisterBegin(c *gin.Context) {
 			}
 			inviteID = inv.ID
 
+			if !validEmail(email) {
+				h.recordFailures("register:ip:" + c.ClientIP())
+				c.JSON(http.StatusBadRequest, gin.H{"error": "valid email address required"})
+				return
+			}
+			if !validDisplayName(displayName) {
+				h.recordFailures("register:ip:" + c.ClientIP())
+				c.JSON(http.StatusBadRequest, gin.H{"error": "display name required (max 80 characters)"})
+				return
+			}
+
 			// Unique email
 			var n int64
 			if err := h.DB.Model(&models.User{}).Where("email = ? AND email != ''", email).Count(&n).Error; err != nil {
@@ -199,6 +212,7 @@ func (h *AuthHandler) RegisterBegin(c *gin.Context) {
 				return
 			}
 			if n > 0 {
+				h.recordFailures("register:ip:" + c.ClientIP())
 				c.JSON(http.StatusConflict, gin.H{"error": "email already registered"})
 				return
 			}
@@ -220,6 +234,7 @@ func (h *AuthHandler) RegisterBegin(c *gin.Context) {
 			}
 		} else {
 			if !user.IsActive {
+				h.recordFailures("register:ip:" + c.ClientIP())
 				c.JSON(http.StatusForbidden, gin.H{"error": "account deactivated"})
 				return
 			}
@@ -248,11 +263,20 @@ func (h *AuthHandler) RegisterBegin(c *gin.Context) {
 			}
 			if credCount > 0 && !user.ForceReReg {
 				if !sessOK || sess.UserID != user.ID {
+					h.recordFailures("register:ip:" + c.ClientIP())
 					c.JSON(http.StatusUnauthorized, gin.H{
 						"error": "login required to add another passkey — use a device code from Profile on your other device",
 					})
 					return
 				}
+			} else if !sessOK && !h.ConfigCache.AllowSignups() {
+				// Zero-credential shells (seeded admin, pre-created accounts) must
+				// not be claimable by strangers when signups are off. Hosted boots
+				// with ALLOW_SIGNUPS=false; flip it on briefly to bind the admin
+				// passkey, then leave invites as the only new-account path.
+				h.recordFailures("register:ip:" + c.ClientIP())
+				c.JSON(http.StatusForbidden, gin.H{"error": "signups are disabled — an admin must enable them or bind this account's first passkey"})
+				return
 			}
 		}
 	}
@@ -266,6 +290,7 @@ func (h *AuthHandler) RegisterBegin(c *gin.Context) {
 	waUser := auth.NewWAUser(user, creds)
 	options, sessionData, err := h.WA.BeginRegistration(waUser)
 	if err != nil {
+		h.recordFailures("register:ip:" + c.ClientIP())
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "begin registration failed", "detail": err.Error()})
 		return
 	}
@@ -334,26 +359,33 @@ func (h *AuthHandler) RegisterFinish(c *gin.Context) {
 	// First use is this registration (session starts immediately).
 	row.UseCount = 1
 	row.LastUsedAt = &now
-	if err := h.DB.Create(&row).Error; err != nil {
+	// Persist the passkey and redeem the invite / device-link atomically —
+	// a crash mid-sequence must not leave a redeemed code without a passkey.
+	err = h.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&row).Error; err != nil {
+			return err
+		}
+		if cs.InviteID != "" {
+			if err := redeemInvite(tx, cs.InviteID); err != nil {
+				// Credential is saved; surface soft warning but still log the user in
+				log.Printf("auth: invite redeem failed: %v", err)
+			}
+		}
+		if cs.DeviceLinkCodeID != "" {
+			if err := redeemDeviceLink(tx, cs.DeviceLinkCodeID); err != nil {
+				log.Printf("auth: device-link redeem failed: %v", err)
+			}
+		}
+		if user.ForceReReg {
+			if err := tx.Model(&user).Update("force_re_reg", false).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "persist credential"})
 		return
-	}
-
-	// Redeem invite / device-link only after a successful passkey (not on abandoned begins)
-	if cs.InviteID != "" {
-		if err := redeemInvite(h.DB, cs.InviteID); err != nil {
-			// Credential is already saved; surface soft warning but still log the user in
-			_ = err
-		}
-	}
-	if cs.DeviceLinkCodeID != "" {
-		if err := redeemDeviceLink(h.DB, cs.DeviceLinkCodeID); err != nil {
-			_ = err
-		}
-	}
-
-	if user.ForceReReg {
-		h.DB.Model(&user).Update("force_re_reg", false)
 	}
 
 	credHex := auth.EncodeCredentialIDHex(row.ID)
@@ -410,18 +442,21 @@ func (h *AuthHandler) LoginBegin(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 		return
 	}
+	ipKey := "login:ip:" + c.ClientIP()
+	userKey := "login:user:" + strings.ToLower(user.Username)
 	if h.CodeLimiter != nil {
-		userKey := "login:user:" + strings.ToLower(user.Username)
-		if !h.CodeLimiter.Allow(userKey, false) {
+		if !h.CodeLimiter.Allow(ipKey, false) || !h.CodeLimiter.Allow(userKey, false) {
 			c.JSON(http.StatusTooManyRequests, gin.H{"error": "too many sign-in attempts — try again in a few minutes"})
 			return
 		}
 	}
 	if !user.IsActive {
+		h.recordFailures(ipKey, userKey)
 		c.JSON(http.StatusForbidden, gin.H{"error": "account deactivated"})
 		return
 	}
 	if user.ForceReReg {
+		h.recordFailures(ipKey, userKey)
 		c.JSON(http.StatusForbidden, gin.H{"error": "passkey re-registration required", "force_re_register": true})
 		return
 	}
@@ -432,6 +467,7 @@ func (h *AuthHandler) LoginBegin(c *gin.Context) {
 		return
 	}
 	if len(creds) == 0 {
+		h.recordFailures(ipKey, userKey)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "no passkeys registered; use Create account first"})
 		return
 	}
@@ -439,6 +475,7 @@ func (h *AuthHandler) LoginBegin(c *gin.Context) {
 	waUser := auth.NewWAUser(user, creds)
 	assertion, sessionData, err := h.WA.BeginLogin(waUser)
 	if err != nil {
+		h.recordFailures(ipKey, userKey)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "begin login failed", "detail": err.Error()})
 		return
 	}
@@ -477,6 +514,7 @@ func (h *AuthHandler) LoginFinish(c *gin.Context) {
 		return
 	}
 	if !user.IsActive {
+		h.recordFailures("login:ip:"+c.ClientIP(), "login:user:"+strings.ToLower(user.Username))
 		c.JSON(http.StatusForbidden, gin.H{"error": "account deactivated"})
 		return
 	}
@@ -498,6 +536,8 @@ func (h *AuthHandler) LoginFinish(c *gin.Context) {
 	waUser := auth.NewWAUser(user, creds)
 	credential, err := h.WA.FinishLogin(waUser, cs.Data, parsed)
 	if err != nil {
+		// A failed assertion is a brute-force signal — count it.
+		h.recordFailures("login:ip:"+c.ClientIP(), "login:user:"+strings.ToLower(user.Username))
 		detail := err.Error()
 		if pe, ok := err.(*protocol.Error); ok && pe.Details != "" {
 			detail = pe.Details
@@ -706,8 +746,8 @@ func devicesJSON(creds []models.Credential, currentCredHex string) []gin.H {
 			"id":          idHex,
 			"device_type": label,
 			// use_count is the reliable "times signed in" counter for the UI
-			"use_count":  cr.UseCount,
-			"sign_count": cr.SignCount, // authenticator counter (often 0 for synced passkeys)
+			"use_count":    cr.UseCount,
+			"sign_count":   cr.SignCount, // authenticator counter (often 0 for synced passkeys)
 			"last_used_at": cr.LastUsedAt,
 			"created_at":   cr.CreatedAt,
 			"is_current":   currentCredHex != "" && idHex == currentCredHex,

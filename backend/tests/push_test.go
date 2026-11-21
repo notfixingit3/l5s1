@@ -18,19 +18,23 @@ func TestPushSubscriptionUpsertAndCount(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int64(1), p.CountForUser("user-a"))
 
-	// Same endpoint, reassign user + rotate keys
-	err = p.UpsertSubscription("user-b", "https://push.example/a", "p256b", "auth2", "UA2")
+	// Same user, same endpoint: rotate keys in place
+	err = p.UpsertSubscription("user-a", "https://push.example/a", "p256b", "auth2", "UA2")
 	require.NoError(t, err)
-	require.Equal(t, int64(0), p.CountForUser("user-a"))
-	require.Equal(t, int64(1), p.CountForUser("user-b"))
+	require.Equal(t, int64(1), p.CountForUser("user-a"))
+
+	// Another user claiming an existing endpoint is rejected (no hijack)
+	err = p.UpsertSubscription("user-b", "https://push.example/a", "p256c", "auth3", "UA3")
+	require.Error(t, err)
+	require.Equal(t, int64(0), p.CountForUser("user-b"))
 
 	var row models.PushSubscription
 	require.NoError(t, db.Where("endpoint = ?", "https://push.example/a").First(&row).Error)
-	require.Equal(t, "user-b", row.UserID)
+	require.Equal(t, "user-a", row.UserID)
 	require.Equal(t, "auth2", row.Auth)
 
-	require.NoError(t, p.DeleteSubscription("user-b", "https://push.example/a"))
-	require.Equal(t, int64(0), p.CountForUser("user-b"))
+	require.NoError(t, p.DeleteSubscription("user-a", "https://push.example/a"))
+	require.Equal(t, int64(0), p.CountForUser("user-a"))
 }
 
 func TestNotifyCreatesInAppWithoutPushPanic(t *testing.T) {

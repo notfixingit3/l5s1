@@ -21,8 +21,8 @@ func (h *PushHandler) PublicKey(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
-		"enabled":     true,
-		"public_key":  h.Push.VAPIDPublic,
+		"enabled":    true,
+		"public_key": h.Push.VAPIDPublic,
 	})
 }
 
@@ -35,9 +35,9 @@ func (h *PushHandler) Status(c *gin.Context) {
 		count = h.Push.CountForUser(uid)
 	}
 	c.JSON(http.StatusOK, gin.H{
-		"enabled":             enabled,
-		"subscribed":          count > 0,
-		"subscription_count":  count,
+		"enabled":            enabled,
+		"subscribed":         count > 0,
+		"subscription_count": count,
 	})
 }
 

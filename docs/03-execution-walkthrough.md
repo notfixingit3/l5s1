@@ -70,7 +70,10 @@ Artifact: [02-file-tree-plan.md](./02-file-tree-plan.md)
 ### Migration
 
 `database.Migrate` runs GORM `AutoMigrate` for all models.  
-`database.SeedDefaults` seeds `ALLOW_SIGNUPS=true` and optional admin email shell.
+`database.SeedDefaults` seeds the `ALLOW_SIGNUPS` flag (initial value from the
+`ALLOW_SIGNUPS` env, default `false`), the optional admin shell, and — only
+when `SeedOptions.DemoAccounts` is set (`SEED_DEMO_ACCOUNTS=true`, local dev
+only) — the tom/jess demo accounts.
 
 ### Gin routers (`internal/router/router.go`)
 
@@ -99,7 +102,14 @@ cd backend && go test ./...
 | `TestMultiDeviceCredentialPayloads` | iPhone + MacBook credentials on one user; distinct IDs; sign-count update isolation |
 | `TestExcludeListReflectsRegisteredDevices` | WAUser exposes all devices for registration exclude list |
 | `TestPartnerAccessAndObservationAuthor` | Partner observation with separate AuthorID |
-| `TestAllowSignupsToggleBlocksRegistration` | `ALLOW_SIGNUPS=false` → HTTP 403 on register begin |
+| `TestAllowSignupsToggleBlocksShellClaim` | `ALLOW_SIGNUPS=false` → HTTP 403 claiming a zero-credential shell; valid invites still register new accounts |
+| `TestLoginBeginRateLimitedAfterFailures` | 12 failed sign-ins → HTTP 429 for the next attempt, valid user included |
+| `TestLoginBeginNoPasskeysRecordsFailures` | no-passkey responses count toward the limit |
+| `TestRegisterBeginRecordsIPFailures` | register rejections exhaust the IP budget → HTTP 429 |
+| `TestForceReRegAndLockInvalidateSessions` | force re-reg and lock end live sessions (memory + SQLite) |
+| `TestAdminConfigRedactsSecrets` | `VAPID_PRIVATE_KEY` returns `[redacted]` |
+| `TestCORSAcceptsAllowedOrigin` / `TestCORSDeniesUnknownOrigin` | CORS headers only for configured origins |
+| `TestSecurityHeadersPresent` | CSP / nosniff / frame-deny on responses |
 | `TestAdminRevokeDevicePasskey` | Delete one device; other device remains |
 | `TestForceReRegisterClearsCredentials` | Admin force re-reg wipes passkeys |
 | `TestDeactivateUser` | `is_active=false` |
@@ -189,11 +199,12 @@ curl -s -X PATCH http://localhost:8080/api/admin/users/{userId} \
 
 ## Production notes (not in scaffold defaults)
 
-1. Set `WEBAUTHN_RP_ID` to your domain and `WEBAUTHN_ORIGINS` to `https://…`
-2. Terminate TLS (WebAuthn requires secure context outside localhost)
-3. Replace in-memory `auth.Store` with Redis/DB sessions
+1. Set `WEBAUTHN_RP_ID` to your domain and `WEBAUTHN_ORIGINS` to `https://…` (this list is also the CORS allowlist)
+2. Terminate TLS (WebAuthn requires secure context outside localhost) and set `SECURE_COOKIE=true`
+3. Leave `ALLOW_SIGNUPS=false` (default) and `SEED_DEMO_ACCOUNTS` unset; bind the admin passkey via a temporary `ALLOW_SIGNUPS=true` bootstrap
 4. Switch DSN to PostgreSQL; models are UUID-friendly
 5. Encrypt public keys / attestation at rest if policy requires
+6. The in-memory ceremony store and rate limiter are single-node only; move to Redis for multi-instance
 
 ---
 

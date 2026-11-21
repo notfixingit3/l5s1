@@ -1,5 +1,5 @@
 /* L5S1 service worker — offline shell cache + web push */
-const CACHE = "l5s1-v25-mobile-notification-panel";
+const CACHE = "l5s1-v26-security-hardening";
 const PRECACHE = [
   "/",
   "/css/app.css",
@@ -16,6 +16,7 @@ const PRECACHE = [
   "/js/notifications.js",
   "/js/push.js",
   "/js/version.js",
+  "/js/register-sw.js",
   "/manifest.webmanifest",
   "/assets/brand/app-icon-192.png",
   "/assets/brand/app-icon-512.png",

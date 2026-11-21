@@ -75,11 +75,11 @@ func (h *TagsHandler) ListActive(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"tags":            out,
-		"groups":          groups,
-		"enabled_packs":   enabled,
-		"only_general":    onlyGeneral && conditionTags == 0,
-		"optional_packs":  len(packs.OptionalKeys()),
+		"tags":           out,
+		"groups":         groups,
+		"enabled_packs":  enabled,
+		"only_general":   onlyGeneral && conditionTags == 0,
+		"optional_packs": len(packs.OptionalKeys()),
 	})
 }
 

@@ -4,6 +4,30 @@ All notable changes to L5S1 are documented here.
 
 Format inspired by [Keep a Changelog](https://keepachangelog.com/). Versions follow pre-release semver: `v0.0.1-beta.N`.
 
+## [0.0.1-beta.34] — 2026-11-20
+
+### Security
+- **CORS allowlist** — cross-origin responses only carry CORS headers for configured `WEBAUTHN_ORIGINS`; the old middleware reflected any `Origin` with credentials
+- **Hardening headers** — CSP (`script-src 'self'`), `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` on every response; the service-worker registration moved to `/js/register-sw.js` to satisfy the CSP
+- **Rate limiting actually limits** — the register/login checks never recorded failures (and a check-then-record off-by-one allowed one failure too many); failed assertions, no-passkey attempts, deactivated/force-re-reg responses, and register rejections now all count, and limiter keys expire
+- **Sessions die with the account** — force re-registration and account lock now invalidate the user's sessions immediately (memory + SQLite)
+- **First-boot hardening** — `ALLOW_SIGNUPS` and `SEED_DEMO_ACCOUNTS` default to **off**; demo tom/jess seeding is dev-only; zero-credential shells (seeded admin) can't be claimed while signups are disabled; startup warns when an admin has no passkey; invites work regardless of the signup flag
+- **Admin config redaction** — `GET /api/admin/config` no longer returns `VAPID_PRIVATE_KEY` (or any `*PRIVATE*/*SECRET*/*TOKEN*/*PASSWORD*` value)
+- **Server hardening** — explicit `http.Server` timeouts (slowloris) + graceful SIGINT/SIGTERM shutdown; container runs as non-root `l5s1` user (uid `APP_UID`, Makefile passes `$(id -u)`); runtime base moves to `debian:trixie-slim`
+- **Transactions** — register/finish (credential + invite/device-link redeem), tag rename/delete (log rewrite), tag move, and admin user updates are atomic
+
+### Changed
+- **Go 1.27.4** (1.25 is end-of-life) and refreshed dependencies: gin 1.12.0, gorm 1.31.2, go-webauthn 0.18.2, x/net 0.63.0, x/crypto 0.59.0, modernc.org/sqlite 1.62.0, jwt v5 5.3.1
+- **CI runs on `dev` pushes and PRs** (was tag-only), adds gosec, pins gosec v2.30.0 / govulncheck v1.10.0
+- Frontend lint tooling pinned (eslint 10.15.0, eslint-plugin-security 4.2.1) with a committed `package-lock.json`; CI frontend job on Node 24
+- New accounts: valid invite is the mandatory gate (checked first); `ALLOW_SIGNUPS` now only gates claiming pre-created shells
+
+### Images
+```bash
+docker pull ghcr.io/notfixingit3/l5s1:v0.0.1-beta.34
+docker pull ghcr.io/notfixingit3/l5s1:latest
+```
+
 ## [0.0.1-beta.33] — 2026-07-18
 
 ### Fixed

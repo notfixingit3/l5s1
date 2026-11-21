@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"errors"
+	"log"
 	"net/http"
 	"regexp"
 	"strings"
@@ -20,12 +22,36 @@ import (
 type AdminHandler struct {
 	DB          *gorm.DB
 	ConfigCache *services.ConfigCache
+	// Store invalidates a user's sessions on force re-reg / lock.
+	Store *auth.Store
 }
 
 // GetConfig returns all dynamic flags.
 // GET /api/admin/config
+// Secret-shaped values (VAPID private key, anything *PRIVATE*/*SECRET*/*TOKEN*)
+// are redacted — they live server-side and must not round-trip through the API.
 func (h *AdminHandler) GetConfig(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"config": h.ConfigCache.All()})
+	c.JSON(http.StatusOK, gin.H{"config": redactConfig(h.ConfigCache.All())})
+}
+
+func redactConfig(m map[string]string) map[string]string {
+	out := make(map[string]string, len(m))
+	for k, v := range m {
+		if sensitiveConfigKey(k) {
+			out[k] = "[redacted]"
+		} else {
+			out[k] = v
+		}
+	}
+	return out
+}
+
+func sensitiveConfigKey(k string) bool {
+	u := strings.ToUpper(k)
+	return strings.Contains(u, "PRIVATE") ||
+		strings.Contains(u, "SECRET") ||
+		strings.Contains(u, "TOKEN") ||
+		strings.Contains(u, "PASSWORD")
 }
 
 // PutConfig updates one or more flags (e.g. ALLOW_SIGNUPS).
@@ -143,12 +169,6 @@ func (h *AdminHandler) PatchUser(c *gin.Context) {
 	}
 	if req.ForceReRegister != nil {
 		updates["force_re_reg"] = *req.ForceReRegister
-		if *req.ForceReRegister {
-			if err := h.DB.Where("user_id = ?", user.ID).Delete(&models.Credential{}).Error; err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "could not clear credentials"})
-				return
-			}
-		}
 	}
 	if req.Role != nil {
 		switch *req.Role {
@@ -193,12 +213,48 @@ func (h *AdminHandler) PatchUser(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "no updates"})
 		return
 	}
-	if err := h.DB.Model(&user).Updates(updates).Error; err != nil {
+	err := h.DB.Transaction(func(tx *gorm.DB) error {
+		if req.ForceReRegister != nil && *req.ForceReRegister {
+			if err := tx.Where("user_id = ?", user.ID).Delete(&models.Credential{}).Error; err != nil {
+				return err
+			}
+		}
+		return tx.Model(&user).Updates(updates).Error
+	})
+	if err != nil {
+		if req.ForceReRegister != nil && *req.ForceReRegister {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "could not clear credentials"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "update failed"})
 		return
 	}
+
+	// Locking an account or wiping its passkeys must end its sessions now,
+	// not when the 30-day cookie happens to expire.
+	if (req.IsActive != nil && !*req.IsActive) || (req.ForceReRegister != nil && *req.ForceReRegister) {
+		h.invalidateUserSessions(user.ID)
+	}
 	h.DB.First(&user, "id = ?", id)
 	c.JSON(http.StatusOK, user)
+}
+
+// invalidateUserSessions drops every session of a user, preferring the
+// attached session store (memory + SQLite) and falling back to a direct
+// DB delete when the handler was built without a store.
+func (h *AdminHandler) invalidateUserSessions(userID string) {
+	if userID == "" {
+		return
+	}
+	if h.Store != nil {
+		h.Store.DeleteUserSessions(userID)
+		return
+	}
+	if h.DB != nil {
+		if err := h.DB.Where("user_id = ?", userID).Delete(&auth.SessionRow{}).Error; err != nil {
+			log.Printf("admin: delete user sessions failed: %v", err)
+		}
+	}
 }
 
 func adminEmailOK(s string) bool {
@@ -330,8 +386,8 @@ func (h *AdminHandler) PatchInvite(c *gin.Context) {
 		return
 	}
 	var req struct {
-		IsActive *bool `json:"is_active"`
-		MaxUses  *int  `json:"max_uses"`
+		IsActive *bool   `json:"is_active"`
+		MaxUses  *int    `json:"max_uses"`
 		Label    *string `json:"label"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -503,17 +559,21 @@ func (h *AdminHandler) PatchTag(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "no updates"})
 		return
 	}
-	// If renaming a custom key that is in use, rewrite logs to the new key
+	// If renaming a custom key that is in use, rewrite logs to the new key —
+	// tag update and log rewrite commit or roll back together.
 	oldKey := tag.Key
-	if err := h.DB.Model(&tag).Updates(updates).Error; err != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "update failed (key may be taken)"})
-		return
-	}
-	if nk, ok := updates["key"].(string); ok && nk != oldKey {
-		if err := rewriteTagKeyOnLogs(h.DB, oldKey, nk); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "updated tag but failed to rewrite log references"})
-			return
+	err := h.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&tag).Updates(updates).Error; err != nil {
+			return err
 		}
+		if nk, ok := updates["key"].(string); ok && nk != oldKey {
+			return rewriteTagKeyOnLogs(tx, oldKey, nk)
+		}
+		return nil
+	})
+	if err != nil {
+		c.JSON(http.StatusConflict, gin.H{"error": "update failed (key may be taken, or log rewrite failed — retry)"})
+		return
 	}
 	h.DB.First(&tag, "id = ?", id)
 	c.JSON(http.StatusOK, tag)
@@ -564,25 +624,37 @@ func (h *AdminHandler) DeleteTag(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "replacement tag not found"})
 			return
 		}
-		if err := rewriteTagKeyOnLogs(h.DB, tag.Key, replaceKey); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to rewrite log tags"})
-			return
-		}
 	}
 
-	res := h.DB.Where("id = ?", id).Delete(&models.Tag{})
-	if res.Error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "delete failed"})
-		return
-	}
-	if res.RowsAffected == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "tag not found"})
+	// Log rewrite (when a replacement was chosen) and the delete commit or
+	// roll back together — never a half-rewritten timeline.
+	err := h.DB.Transaction(func(tx *gorm.DB) error {
+		if usage > 0 {
+			if err := rewriteTagKeyOnLogs(tx, tag.Key, replaceKey); err != nil {
+				return err
+			}
+		}
+		res := tx.Where("id = ?", id).Delete(&models.Tag{})
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return gorm.ErrRecordNotFound
+		}
+		return nil
+	})
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "tag not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "delete failed (log rewrite may be partial — retry)"})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
-		"status":          "deleted",
-		"replaced_with":   replaceKey,
-		"logs_rewritten":  usage,
+		"status":         "deleted",
+		"replaced_with":  replaceKey,
+		"logs_rewritten": usage,
 	})
 }
 
@@ -746,11 +818,13 @@ func (h *AdminHandler) MoveTag(c *gin.Context) {
 		oa, ob = a.SortOrder, b.SortOrder
 	}
 
-	if err := h.DB.Model(&models.Tag{}).Where("id = ?", a.ID).Update("sort_order", ob).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "move failed"})
-		return
-	}
-	if err := h.DB.Model(&models.Tag{}).Where("id = ?", b.ID).Update("sort_order", oa).Error; err != nil {
+	swapErr := h.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&models.Tag{}).Where("id = ?", a.ID).Update("sort_order", ob).Error; err != nil {
+			return err
+		}
+		return tx.Model(&models.Tag{}).Where("id = ?", b.ID).Update("sort_order", oa).Error
+	})
+	if swapErr != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "move failed"})
 		return
 	}

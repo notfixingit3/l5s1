@@ -1,8 +1,13 @@
 package main
 
 import (
+	"context"
 	"log"
+	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/l5s1/health-registry/internal/auth"
@@ -21,9 +26,13 @@ func main() {
 	if err != nil {
 		log.Fatalf("database: %v", err)
 	}
-	if err := database.SeedDefaults(db, cfg.SeedAdminEmail); err != nil {
+	if err := database.SeedDefaults(db, cfg.SeedAdminEmail, database.SeedOptions{
+		DemoAccounts: cfg.SeedDemoAccounts,
+		AllowSignups: cfg.AllowSignupsInitial,
+	}); err != nil {
 		log.Fatalf("seed: %v", err)
 	}
+	database.WarnUnprotectedAdmins(db)
 
 	cache, err := services.NewConfigCache(db)
 	if err != nil {
@@ -47,19 +56,42 @@ func main() {
 	}
 
 	engine := router.New(router.Deps{
-		DB:           db,
-		WA:           wa,
-		Store:        store,
-		ConfigCache:  cache,
-		Push:         pushSvc,
-		CookieName:   cfg.SessionCookie,
-		SecureCookie: os.Getenv("SECURE_COOKIE") == "true",
-		FrontendDir:  cfg.FrontendStatic,
+		DB:             db,
+		WA:             wa,
+		Store:          store,
+		ConfigCache:    cache,
+		Push:           pushSvc,
+		CookieName:     cfg.SessionCookie,
+		SecureCookie:   os.Getenv("SECURE_COOKIE") == "true",
+		FrontendDir:    cfg.FrontendStatic,
+		AllowedOrigins: cfg.RPOrigins,
 	})
 
 	addr := ":" + cfg.Port
-	log.Printf("L5S1 listening on %s (RPID=%s origins=%v)", addr, cfg.RPID, cfg.RPOrigins)
-	if err := engine.Run(addr); err != nil {
-		log.Fatalf("server: %v", err)
+	srv := &http.Server{
+		Addr:              addr,
+		Handler:           engine,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
+
+	go func() {
+		log.Printf("L5S1 listening on %s (RPID=%s origins=%v)", addr, cfg.RPID, cfg.RPOrigins)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("server: %v", err)
+		}
+	}()
+
+	// Graceful shutdown: finish in-flight requests (bounded) on SIGINT/SIGTERM.
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	log.Printf("L5S1 shutting down")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatalf("server: forced shutdown: %v", err)
 	}
 }
