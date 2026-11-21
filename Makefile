@@ -68,5 +68,5 @@ gosec: ## gosec static analysis
 govulncheck: ## govulncheck dependency CVEs
 	cd backend && govulncheck ./...
 
-lint-fe: ## ESLint + security plugin on frontend JS
-	cd frontend && npm install --no-save eslint eslint-plugin-security >/dev/null 2>&1 && npx eslint js/
+lint-fe: ## ESLint + security plugin on frontend JS (pinned via package-lock)
+	cd frontend && npm ci --silent && npx eslint js/

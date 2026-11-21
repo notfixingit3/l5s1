@@ -19,7 +19,6 @@
 
 # Frontend tooling (dev-only lint)
 frontend/node_modules/
-frontend/package-lock.json
 tools/node_modules/
 tools/package-lock.json
 tools/package.json
