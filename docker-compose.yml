@@ -29,6 +29,8 @@ services:
         VERSION: ${VERSION:-0.0.1-beta.33}
         COMMIT: ${COMMIT:-local}
         BUILD_TIME: ${BUILD_TIME:-unknown}
+        # Must own the bind-mounted ./data; override with APP_UID=$(id -u)
+        APP_UID: ${APP_UID:-10001}
     image: l5s1:local
     container_name: l5s1
     ports:
@@ -52,6 +54,8 @@ services:
         VERSION: ${VERSION:-0.0.1-beta.33}
         COMMIT: ${COMMIT:-local}
         BUILD_TIME: ${BUILD_TIME:-unknown}
+        # Must own the bind-mounted ./data; override with APP_UID=$(id -u)
+        APP_UID: ${APP_UID:-10001}
     image: l5s1:local
     container_name: l5s1-dev
     ports:

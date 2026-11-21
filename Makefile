@@ -7,7 +7,7 @@ VERSION := $(shell tr -d '[:space:]' < VERSION 2>/dev/null || echo 0.0.0-dev)
 
 up: ## Build & start Docker stack (passkeys persist in ./data)
 	mkdir -p data
-	docker compose build --build-arg VERSION=$(VERSION) --build-arg COMMIT=local --build-arg BUILD_TIME=$$(date -u +%Y-%m-%dT%H:%M:%SZ)
+	docker compose build --build-arg VERSION=$(VERSION) --build-arg COMMIT=local --build-arg BUILD_TIME=$$(date -u +%Y-%m-%dT%H:%M:%SZ) --build-arg APP_UID=$$(id -u)
 	docker compose up -d
 	@echo "Open http://localhost:8080  (use localhost, not 127.0.0.1) · v$(VERSION)"
 
@@ -19,7 +19,7 @@ pull-ghcr: ## Run published image (IMAGE_TAG=v0.0.1-beta.33)
 
 dev: ## Start with host frontend bind-mount for UI iteration
 	mkdir -p data
-	docker compose --profile dev up --build -d app-dev
+	APP_UID=$$(id -u) docker compose --profile dev up --build -d app-dev
 	@echo "Open http://localhost:8080  (frontend live from ./frontend)"
 
 down: ## Stop containers (keeps ./data passkeys)
@@ -27,7 +27,8 @@ down: ## Stop containers (keeps ./data passkeys)
 
 rebuild: ## Rebuild image without wiping data
 	mkdir -p data
-	docker compose up --build -d
+	docker compose build --build-arg APP_UID=$$(id -u)
+	docker compose up -d
 
 logs: ## Tail app logs
 	docker compose logs -f app
