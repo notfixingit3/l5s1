@@ -7,7 +7,8 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/). Versions fol
 ## [Unreleased]
 
 ### Docs
-- Present l5s1 as part of SteadyHarden, a trade name of Mackie Family Co. LLC.: ownership line added to `README.md`, `README.dev.md`, `README.main.md`, and `docs/ARCHITECTURE.md`; "A SteadyHarden product" added to the app footer. No version bump, no change to copyright/LICENSE, image/repo paths, or deploy files.
+- Present l5s1 as part of SteadyHarden, a trade name of Mackie Family Co. LLC.: ownership line added to `README.md`, `README.dev.md`, `README.main.md`, and `docs/ARCHITECTURE.md`. The app footer now reads "l5s1 is part of SteadyHarden, a trade name of Mackie Family Co. LLC." (replacing "A SteadyHarden product") followed by "Copyright © 2026 Mackie Family Co. LLC"; service worker cache bumped to `l5s1-v27-steadyharden-branding` so clients pick up the new HTML.
+- Copyright holder set to Mackie Family Co. LLC (2026) in the README License section and the app footer. License terms unchanged (still "TBD — all rights reserved"; no LICENSE file exists). No version bump, no image/repo paths or deploy files changed.
 
 ## [0.0.1-beta.34] — 2026-11-20
 
