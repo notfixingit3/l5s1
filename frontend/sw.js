@@ -1,5 +1,5 @@
 /* L5S1 service worker — offline shell cache + web push */
-const CACHE = "l5s1-v26-security-hardening";
+const CACHE = "l5s1-v27-steadyharden-branding";
 const PRECACHE = [
   "/",
   "/css/app.css",

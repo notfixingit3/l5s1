@@ -1,6 +1,7 @@
 {
   "name": "l5s1-frontend",
   "private": true,
+  "license": "UNLICENSED",
   "type": "module",
   "scripts": {
     "lint": "eslint js/",
